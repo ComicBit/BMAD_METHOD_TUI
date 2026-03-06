@@ -1717,11 +1717,16 @@ class AgentPickerScreen(Screen):
 def _set_story_status(sprint_status_path: Path, story_id: str, new_status: str, md_path: "Path | None" = None) -> None:
     """Update a single story's status in sprint-status.yaml and, when available, in the story .md file."""
     import re
-    import yaml as _yaml
-    raw = _yaml.safe_load(sprint_status_path.read_text()) or {}
-    dev = raw.setdefault("development_status", {})
-    dev[story_id] = new_status
-    sprint_status_path.write_text(_yaml.dump(raw, default_flow_style=False, sort_keys=False))
+    # Replace only the matching status line so comments and spacing survive.
+    text = sprint_status_path.read_text(encoding="utf-8")
+    escaped_id = re.escape(story_id)
+    updated = re.sub(
+        rf"(?m)^(\s*{escaped_id}\s*:\s*).*$",
+        rf"\g<1>{new_status}",
+        text,
+        count=1,
+    )
+    sprint_status_path.write_text(updated, encoding="utf-8")
     if md_path and Path(md_path).exists():
         text = Path(md_path).read_text(encoding="utf-8")
         # Match both "Status: <value>" and "**Status:** <value>"

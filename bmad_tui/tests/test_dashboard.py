@@ -387,6 +387,29 @@ class TestSetStoryStatus:
         raw = yaml.safe_load(sprint.read_text())
         assert raw["development_status"]["1-1"] == "done"
 
+    def test_preserves_comments_and_blank_lines(self, tmp_path):
+        """Regression: _set_story_status must not strip comments or blank lines."""
+        content = (
+            "# project comments\n"
+            "# STATUS DEFINITIONS:\n"
+            "\n"
+            "generated: '2026-01-01'\n"
+            "development_status:\n"
+            "  epic-1: in-progress\n"
+            "  1-1: backlog\n"
+            "\n"
+            "  epic-2: backlog\n"
+        )
+        p = tmp_path / "sprint-status.yaml"
+        p.write_text(content)
+        _set_story_status(p, "1-1", "in-progress")
+        result = p.read_text()
+        assert "# project comments" in result
+        assert "# STATUS DEFINITIONS:" in result
+        assert "\n\n" in result
+        raw = yaml.safe_load(result)
+        assert raw["development_status"]["1-1"] == "in-progress"
+
 
 class TestDashboardHistoryRowClickBehavior:
     """Tests for _DashboardHistoryRow single-click (Highlighted) and double-click (Selected)."""
