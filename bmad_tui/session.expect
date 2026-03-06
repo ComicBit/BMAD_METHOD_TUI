@@ -1,0 +1,187 @@
+#!/usr/bin/env expect
+# Usage: session.expect -- <model> <agent> <prompt> <repo_root> [idle_secs]
+#
+# Spawns a single interactive Copilot session and exits when the agent goes idle.
+# Ported from tools/cr-loop/cr-session.expect — same idle-timer pattern,
+# without CR-specific findings logic.
+#
+# Task-done detection: Copilot emits ESC]9;4;0;0 BEL (ConEmu "progress cleared")
+# when it finishes a response and returns to the input prompt — the same signal
+# that causes the terminal window to bounce in the Dock. We match this sequence
+# (after a short startup grace period) to play a completion sound immediately.
+
+set timeout -1
+
+if {[llength $argv] < 4} {
+  puts "Usage: session.expect -- <model> <agent> <prompt> <repo_root> \[idle_secs\] \[session_id\] \[log_file\]"
+  exit 2
+}
+
+set model      [lindex $argv 0]
+set agent      [lindex $argv 1]
+set prompt     [lindex $argv 2]
+set repo_root  [lindex $argv 3]
+
+# Optional idle timeout override (default 180s for dev sessions; CR uses 90s)
+set idle_secs 180
+if {[llength $argv] >= 5} {
+  set idle_secs [lindex $argv 4]
+}
+
+# Optional session_id for --resume; empty means start a new session
+set session_id ""
+if {[llength $argv] >= 6} {
+  set session_id [lindex $argv 5]
+}
+
+# Optional log file to capture output for session ID extraction
+set log_file_path ""
+if {[llength $argv] >= 7} {
+  set log_file_path [lindex $argv 6]
+}
+if {$log_file_path ne ""} {
+  log_file $log_file_path
+}
+
+# Optional is_yolo flag: 1 (default) = yolo mode (idle timer may fire);
+# 0 = slow/interactive mode (idle timer is disabled entirely).
+set is_yolo 1
+if {[llength $argv] >= 8} {
+  set is_yolo [lindex $argv 7]
+}
+
+# Optional auto_despawn flag: 1 (default) = kill agent after task-done chime
+# when a worktree change is detected; 0 = never auto-kill.
+set auto_despawn 1
+if {[llength $argv] >= 9} {
+  set auto_despawn [lindex $argv 8]
+}
+
+# CLI tool to use: "copilot" (default) or "claude"
+set cli_tool "copilot"
+if {[llength $argv] >= 10} {
+  set cli_tool [lindex $argv 9]
+}
+
+# kill_armed is set to 1 when the chime fires and we detect the agent made
+# changes (saw (+N), (-N), or (+N -N) markers in its output), which tells
+# reset_idle_timer to schedule the exit sequence.
+set kill_armed 0
+
+# For interactive sessions the very first post-startup ESC]9;4;0 is emitted
+# when the agent finishes rendering its greeting/menu and returns to the input
+# prompt — NOT a task completion.  We skip that one chime.
+# Yolo sessions already have the 8-second startup_done guard which covers the
+# same initial noise, so no extra skip is needed there.
+set first_interactive_chime_pending [expr {!$is_yolo}]
+
+# Set to 1 whenever we observe (+N), (-N), or (+N -N) in the agent output, meaning
+# this specific agent session has edited at least one file.
+set agent_made_changes 0
+
+# Set to 1 when Copilot prints its closing stats ("Total session time:", etc.).
+# The stats always appear before the final ESC]9;4;0 on a clean exit, so we use
+# this flag to suppress that last spurious "Task complete" chime.
+set session_ending 0
+
+if {$cli_tool eq "claude"} {
+  if {$session_id ne ""} {
+    spawn claude \
+      --model $model \
+      --agent $agent \
+      --add-dir $repo_root \
+      --add-dir /tmp \
+      --dangerously-skip-permissions \
+      --resume $session_id
+  } else {
+    spawn claude \
+      --model $model \
+      --agent $agent \
+      --add-dir $repo_root \
+      --add-dir /tmp \
+      --dangerously-skip-permissions \
+      $prompt
+  }
+} elseif {$session_id ne ""} {
+  spawn copilot \
+    --model $model \
+    --agent $agent \
+    --add-dir $repo_root \
+    --add-dir /tmp \
+    --allow-all-tools \
+    --alt-screen off \
+    --resume=$session_id
+} else {
+  spawn copilot \
+    --model $model \
+    --agent $agent \
+    --add-dir $repo_root \
+    --add-dir /tmp \
+    --allow-all-tools \
+    --alt-screen off \
+    --interactive $prompt
+}
+
+set idle_timer ""
+
+# Ignore the ESC]9;4;0;0 BEL emitted during startup.
+# After this grace period we treat it as the "agent finished" signal.
+set startup_done 0
+after 8000 { set startup_done 1 }
+
+proc play_done_sound {} {
+  global cli_tool
+  set title [string totitle $cli_tool]
+  catch {exec osascript -e "display notification \"Task complete\" with title \"$title\"" &}
+}
+
+proc reset_idle_timer {} {
+  global idle_secs idle_timer is_yolo auto_despawn kill_armed
+  # Slow/interactive mode or auto_despawn disabled: never schedule a kill.
+  if {!$is_yolo || !$auto_despawn || !$kill_armed} { return }
+  catch {after cancel $idle_timer}
+  set idle_timer [after [expr {$idle_secs * 1000}] {
+    send -- "\x1b"
+    after 100
+    send -- "/exit\r"
+    after 200
+    send -- "\r"
+    after 200
+    send -- "\x04"
+  }]
+}
+
+expect_background \
+  -re {trust the files.*\?}             { send -- "y\r"; reset_idle_timer } \
+  -re {\(C\).*Continue|\[C\].*Continue} { send -- "c\r"; reset_idle_timer } \
+  -re {\(\+[0-9]+\)|\(-[0-9]+\)|\(\+[0-9]+ -[0-9]+\)} { set agent_made_changes 1; reset_idle_timer } \
+  -re {Total session time:|Total usage est:|API time spent:} { set session_ending 1; reset_idle_timer } \
+  -re "\x1b\]9;4;0"                    {
+    if {$startup_done && !$session_ending} {
+      # Interactive mode: skip the very first post-startup signal (greeting/menu),
+      # then ring normally for every subsequent task completion.
+      if {$first_interactive_chime_pending} {
+        set first_interactive_chime_pending 0
+      } else {
+        play_done_sound
+        # Yolo + auto_despawn: only arm the kill timer if this agent session
+        # actually produced edits (observed (+N), (-N), or (+N -N) markers in output).
+        if {$is_yolo && $auto_despawn} {
+          global agent_made_changes kill_armed idle_timer
+          if {$agent_made_changes} {
+            set kill_armed 1
+            reset_idle_timer
+          } else {
+            set kill_armed 0
+            catch {after cancel $idle_timer}
+          }
+        }
+      }
+    }
+  } \
+  -re {.}                               { reset_idle_timer }
+
+reset_idle_timer
+
+catch {interact}
+exit 0
