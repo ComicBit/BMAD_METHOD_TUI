@@ -1,4 +1,4 @@
-"""Tests for tools/bmad_tui/wizard.py"""
+"""Tests for bmad_tui/wizard.py."""
 
 import sys
 from pathlib import Path
@@ -7,13 +7,13 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.wizard import (
+from bmad_tui.wizard import (
     _STEPS,
     WizardStep,
     _step_done,
     run_wizard_if_needed,
 )
-from tools.bmad_tui.models import ProjectState
+from bmad_tui.models import ProjectState
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ class TestRunWizardIfNeeded:
         assert result is False
 
     def test_returns_false_when_prerequisites_missing(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("tools.bmad_tui.wizard.check_prerequisites", lambda: ["copilot", "expect"])
+        monkeypatch.setattr("bmad_tui.wizard.check_prerequisites", lambda: ["copilot", "expect"])
         result = run_wizard_if_needed(tmp_path)
         assert result is False
 

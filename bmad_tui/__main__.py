@@ -1,16 +1,16 @@
-"""Entry point: python -m tools.bmad_tui"""
+"""Entry point: python -m bmad_tui."""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# Allow running as `python -m tools.bmad_tui` from repo root
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Allow running as `python -m bmad_tui` from repo root.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tools.bmad_tui.dashboard import Dashboard
-from tools.bmad_tui.state import find_project_root, load_state
-from tools.bmad_tui.wizard import run_wizard_if_needed
+from bmad_tui.dashboard import Dashboard
+from bmad_tui.state import find_project_root, load_state
+from bmad_tui.wizard import run_wizard_if_needed
 
 
 def main() -> None:

@@ -1,4 +1,4 @@
-"""Tests for tools/bmad_tui/models.py"""
+"""Tests for bmad_tui/models.py."""
 
 import sys
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.models import (
+from bmad_tui.models import (
     Epic,
     Model,
     ProjectState,

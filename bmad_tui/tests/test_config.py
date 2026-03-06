@@ -1,12 +1,12 @@
-"""Tests for tools/bmad_tui/config.py"""
+"""Tests for bmad_tui/config.py."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.config import TuiConfig, load_config, save_config
-from tools.bmad_tui.models import Model
+from bmad_tui.config import TuiConfig, load_config, save_config
+from bmad_tui.models import Model
 
 
 class TestLoadConfig:

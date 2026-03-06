@@ -5,8 +5,7 @@ A terminal mission-control interface for BMAD sprint management.
 ## Install
 
 ```bash
-# Using the project venv (recommended)
-.venv/bin/python3 -m pip install -r tools/bmad_tui/requirements.txt
+./install.sh
 ```
 
 Also requires:
@@ -18,7 +17,7 @@ Also requires:
 From the repo root:
 
 ```bash
-python -m tools.bmad_tui
+tui
 ```
 
 ## Key bindings

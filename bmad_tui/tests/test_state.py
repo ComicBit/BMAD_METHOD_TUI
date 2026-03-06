@@ -1,4 +1,4 @@
-"""Tests for tools/bmad_tui/state.py"""
+"""Tests for bmad_tui/state.py."""
 
 import sys
 import textwrap
@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.state import (
+from bmad_tui.state import (
     _epic_id_from_story,
     _find_story_file,
     _phase_summary,
@@ -16,7 +16,7 @@ from tools.bmad_tui.state import (
     load_state,
     project_phase,
 )
-from tools.bmad_tui.models import StoryStatus
+from bmad_tui.models import StoryStatus
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────

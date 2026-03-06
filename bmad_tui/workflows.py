@@ -752,6 +752,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
 
 # Actions available per effective status (primary first)
 STATUS_ACTIONS: dict[str, list[str]] = {
+    "needs-story": ["create-story", "validate-story"],
     "ready-for-dev": ["dev-story", "validate-story", "check-implementation-readiness"],
     "in-progress": ["dev-story", "correct-course"],
     "review": ["code-review"],
@@ -778,12 +779,14 @@ AGENTS: list[AgentDef] = [
                        "create-epics-and-stories"],
         role="Scrum Master",
         description="Sprint planning and agile ceremonies specialist. Creates stories, manages the backlog, and keeps the team moving forward.",
+        agent_id="bmad-agent-bmm-sm",
     ),
     AgentDef(
         name="Amelia", persona="Amelia (Dev) 💻", icon="💻",
         workflow_keys=["dev-story", "code-review"],
         role="Developer",
         description="Story execution specialist. Writes code and tests with strict adherence to story ACs and team standards.",
+        agent_id="bmad-agent-bmm-dev",
     ),
     AgentDef(
         name="Winston", persona="Winston (Architect) 🏗️", icon="🏗️",
@@ -791,30 +794,35 @@ AGENTS: list[AgentDef] = [
                        "check-implementation-readiness"],
         role="Architect",
         description="System design specialist. Defines technical architecture, evaluates implementation readiness, and conducts technical research.",
+        agent_id="bmad-agent-bmm-architect",
     ),
     AgentDef(
         name="Mary", persona="Mary (Analyst) 📊", icon="📊",
         workflow_keys=["domain-research", "market-research", "create-product-brief"],
         role="Business Analyst",
         description="Domain and market research specialist. Elicits requirements, performs competitive analysis, and creates product briefs.",
+        agent_id="bmad-agent-bmm-analyst",
     ),
     AgentDef(
         name="John", persona="John (PM) 📋", icon="📋",
         workflow_keys=["create-prd", "create-epics-and-stories"],
         role="Product Manager",
         description="Product strategy specialist. Creates PRDs, defines epics and stories, and aligns stakeholders.",
+        agent_id="bmad-agent-bmm-pm",
     ),
     AgentDef(
         name="Sally", persona="Sally (UX) 🎨", icon="🎨",
         workflow_keys=["create-ux-design"],
         role="UX Designer",
         description="User experience specialist. Designs interaction flows, UI patterns, and experience strategy.",
+        agent_id="bmad-agent-bmm-ux-designer",
     ),
     AgentDef(
         name="Quinn", persona="Quinn (QA) 🧪", icon="🧪",
         workflow_keys=["qa-automate"],
         role="QA Engineer",
         description="Quality assurance specialist. Automates tests, covers critical paths, and ensures release quality.",
+        agent_id="bmad-agent-bmm-qa",
     ),
     AgentDef(
         name="Murat", persona="Murat (TEA) 🔬", icon="🔬",
@@ -823,24 +831,30 @@ AGENTS: list[AgentDef] = [
                        "testarch-trace"],
         role="Test Architect",
         description="Test architecture specialist. Designs ATDD frameworks, CI quality gates, and NFR test strategies.",
+        agent_id="bmad-agent-tea-tea",
     ),
     AgentDef(
         name="Paige", persona="Paige (Tech Writer) 📚", icon="📚",
         workflow_keys=["document-project", "generate-project-context"],
         role="Technical Writer",
         description="Documentation specialist. Writes project docs, generates context files, and maintains living documentation.",
+        agent_id="bmad-agent-bmm-tech-writer",
     ),
     AgentDef(
         name="Barry", persona="Barry (Quick Flow) 🚀", icon="🚀",
         workflow_keys=["quick-dev", "quick-spec"],
         role="Quick Flow Dev",
         description="Rapid delivery specialist. Creates lean specs and ships minimal-ceremony features fast.",
+        category="other",
+        agent_id="bmad-agent-bmm-quick-flow-solo-dev",
     ),
     AgentDef(
         name="Creative & Meta", persona="Creative & Meta 🎭", icon="🎭",
         workflow_keys=["brainstorming", "party-mode", "create-agent", "create-workflow"],
         role="Meta Agent",
         description="Creative and meta workflows. Brainstorming, party mode, and creation of new agents and workflows.",
+        category="other",
+        agent_id="bmad-agent-bmad-master",
     ),
 ]
 

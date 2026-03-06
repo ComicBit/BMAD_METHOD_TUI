@@ -1,6 +1,6 @@
 # BMAD Dashboard TUI — Agent Reference
 
-This document explains the `tools/bmad_tui` package to AI agents that need to understand, extend, or debug it.
+This document explains the `bmad_tui` package to AI agents that need to understand, extend, or debug it.
 
 ---
 
@@ -11,7 +11,7 @@ A terminal-based mission-control dashboard for managing a BMAD sprint. It reads 
 Run from the repo root:
 
 ```bash
-python -m tools.bmad_tui
+tui
 ```
 
 If `sprint-status.yaml` does not exist yet, an interactive wizard runs first to bootstrap the project (PRD → Architecture → Epics & Stories → Sprint Planning).
@@ -117,10 +117,10 @@ If you need to add or fix Claude CLI support, the main integration points are:
 - `expect` — `brew install expect`
 - At least one of: `copilot` CLI (`npm install -g @github/copilot-cli`) or `claude` CLI
 
-Check with:
+Install with:
 
 ```bash
-python -m tools.bmad_tui  # prerequisite check runs at startup
+./install.sh
 ```
 
 ---

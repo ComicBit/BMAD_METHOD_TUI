@@ -17,71 +17,54 @@
   <img alt="Status" src="https://img.shields.io/badge/Status-Prototype%20%2F%20Extraction-yellow">
 </p>
 
+![BMAD Dashboard TUI Screenshot](./assets/bmad_tui_screenshot.png)
+
+---
+
+## What This Is
+
+BMAD Dashboard TUI turns BMAD from a big set of prompts, phases, files, agents, and branching choices into one clear operating surface.
+
+Instead of bouncing between markdown files, trying to remember which workflow to run next, and losing the thread of the sprint, you open the dashboard and see the project as it actually stands right now:
+
+- which epic is active
+- which stories need to be created
+- which ones are ready for dev
+- which work is in review
+- what you ran last
+- which agent or workflow should happen next
+
+That is the value of this tool. It reduces friction, lowers the mental overhead of using BMAD well, and helps you stay oriented when a project starts getting large or messy.
+
+BMAD is powerful, but it also gives you a lot of options. This TUI makes those options feel navigable instead of overwhelming.
+
+---
+
+## Why It Feels Better
+
+Without a dashboard, BMAD can feel like this:
+
+- many commands
+- many agents
+- many phases
+- many artifact files
+- many places to lose context
+
+With this TUI, the workflow becomes much more grounded:
+
+- your sprint status is visible at a glance
+- story state is derived automatically from BMAD artifacts
+- the next action is attached to the story in front of you
+- global workflows stay accessible without cluttering the whole process
+- session history gives you continuity instead of guesswork
+
+The result is not just convenience. It changes the emotional experience of running a BMAD project. The repo feels calmer, more legible, and easier to drive.
+
 ---
 
 ## What It Does
 
-BMAD Dashboard TUI is a terminal interface for operating a repository that follows the BMAD workflow. It reads BMAD planning and implementation artifacts from the repo, renders the sprint as epics and stories, and lets you launch the right BMAD agent workflow without leaving the terminal.
-
-The core loop is simple:
-
-1. Read `_bmad-output/implementation-artifacts/sprint-status.yaml`
-2. Derive story state from YAML plus the presence of story markdown files
-3. Show the backlog as a navigable Textual dashboard
-4. Launch the appropriate agent session for the selected story or phase
-5. Record session metadata so work can be resumed or audited later
-
-This project is effectively a standalone extraction of the BMAD TUI used in other repos such as Aurora and Zoe Validator.
-
----
-
-## System Overview
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                         BMAD Dashboard TUI                         │
-│                                                                     │
-│  ┌──────────────────┐   ┌────────────────────┐   ┌───────────────┐  │
-│  │  Sprint View     │   │  Story Action      │   │ Agent Picker  │  │
-│  │  epics + cards   │   │  workflow chooser  │   │ phase/persona │  │
-│  └────────┬─────────┘   └─────────┬──────────┘   └──────┬────────┘  │
-│           │                       │                       │           │
-│           └──────────────┬────────┴──────────────┬────────┘           │
-│                          ▼                       ▼                    │
-│                  ProjectState loader       Workflow registry          │
-│                  status derivation         prompts + models           │
-└──────────────────────────┬───────────────────────┬────────────────────┘
-                           │                       │
-                           ▼                       ▼
-                _bmad-output artifacts      Expect session runner
-                epics.md / stories /        copilot or claude CLI
-                sprint-status.yaml          session logs + resume IDs
-                           │                       │
-                           └──────────────┬────────┘
-                                          ▼
-                                History + local config
-                          artifacts/logs/tui-history.jsonl
-                          .bmad-tui-config.json
-```
-
-### Core Components
-
-| Component | Role |
-|-----------|------|
-| `bmad_tui/dashboard.py` | Main Textual app: story board, detail pane, history, modals, launcher UI |
-| `bmad_tui/state.py` | Parses BMAD artifacts into a `ProjectState` with epics, stories, and derived status |
-| `bmad_tui/workflows.py` | Central registry of BMAD workflows, agents, prompt templates, models, and phases |
-| `bmad_tui/agent_runner.py` | Starts agent sessions through `expect`, captures resume IDs, tracks run stats, handles CR loop |
-| `bmad_tui/wizard.py` | Bootstrap flow for new projects: PRD → Architecture → Epics & Stories → Sprint Planning |
-| `bmad_tui/history.py` | Persists run history to JSONL and filters trivial or legacy entries |
-| `bmad_tui/config.py` | Stores per-project preferences such as remembered models and CLI selection |
-| `bmad_tui/session.expect` | PTY wrapper for Copilot or Claude CLI, including idle handling and auto-despawn |
-
----
-
-## Product Shape
-
-### Primary capabilities
+BMAD Dashboard TUI reads the project’s BMAD artifacts, builds a live view of the sprint, and lets you launch the right workflow from the terminal.
 
 - Render the current sprint directly from BMAD output files
 - Distinguish `needs-story`, `ready-for-dev`, `in-progress`, `review`, `done`, and blocked work
@@ -91,7 +74,34 @@ This project is effectively a standalone extraction of the BMAD TUI used in othe
 - Track workflow history with timestamps, model used, session ID, API time, and code-change stats
 - Resume or rerun prior sessions from the dashboard
 
-### Workflow model
+It is effectively a standalone extraction of the BMAD TUI used in other repos such as Aurora and Zoe Validator.
+
+---
+
+## How It Thinks About The Project
+
+The dashboard is driven by BMAD’s own files, not by a separate database or custom project model.
+
+It reads:
+
+- `_bmad-output/planning-artifacts/prd.md`
+- `_bmad-output/planning-artifacts/architecture.md`
+- `_bmad-output/planning-artifacts/epics.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/*.md` story files
+
+From that, it gives you a smart operational view of the repo:
+
+- backlog stories without a file become `needs-story`
+- backlog stories with a file become `ready-for-dev`
+- stories in `review` naturally route toward CR flow
+- finished work remains visible without dominating the board
+
+That smart tracking is a big part of the point. You do not need to reconstruct project state in your head every time you come back to the repo.
+
+---
+
+## Workflow Coverage
 
 The registry groups work under BMAD-style phases:
 
@@ -103,7 +113,7 @@ The registry groups work under BMAD-style phases:
 - `Documentation`
 - `Creative & Meta`
 
-Representative workflows currently defined in code include:
+Representative workflows include:
 
 - `create-prd`
 - `create-architecture`
@@ -120,9 +130,7 @@ Representative workflows currently defined in code include:
 - `quick-dev`
 - `quick-spec`
 
-### Model policy
-
-Three model values are built into the app:
+Three model values are currently built into the app:
 
 | Model | Intended use |
 |-------|--------------|
@@ -132,44 +140,29 @@ Three model values are built into the app:
 
 ---
 
-## Repo Inputs And Outputs
+## Install
 
-### Reads from the repository
+The installer is the intended entry point.
 
-- `_bmad-output/planning-artifacts/prd.md`
-- `_bmad-output/planning-artifacts/architecture.md`
-- `_bmad-output/planning-artifacts/epics.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- `_bmad-output/implementation-artifacts/*.md` story files
+```bash
+./install.sh
+```
 
-### Writes inside the repository
+What the installer does:
 
-- `artifacts/logs/tui-history.jsonl`
-- `artifacts/logs/cr-loop/findings_<story>.md`
-- `.bmad-tui-config.json`
+- installs the TUI into `~/.local/share/bmad-tui`
+- creates a dedicated virtual environment there
+- installs Python dependencies
+- writes a global `tui` launcher into `~/.local/bin/tui`
+- adds `~/.local/bin` to your shell PATH if needed
 
-The TUI itself treats `sprint-status.yaml` as the source of truth. Agent sessions are expected to mutate project artifacts; the dashboard mostly reads and routes.
+After that, the normal way to launch the app is:
 
----
+```bash
+tui
+```
 
-## Current Status
-
-This standalone repo is not fully normalized yet. The implementation and tests still contain historical references to `tools.bmad_tui`, while the code in this checkout lives under `bmad_tui/`.
-
-That means:
-
-- The project is well-defined architecturally
-- The README can document the intended behavior accurately
-- The launcher/import path still needs cleanup before the standalone package runs cleanly as-is
-
-During verification in this checkout:
-
-- `bmad_tui` is importable as a package
-- `tools.bmad_tui` is not present
-- `python3 -m pytest ...` currently fails at collection because tests import `tools.bmad_tui.*`
-- `from bmad_tui.__main__ import main` also fails for the same reason
-
-So treat this repository today as a focused code extraction plus tests and docs, not yet a polished standalone release.
+Run `tui` from anywhere inside a git repository that contains BMAD folders such as `_bmad` or `_bmad-output`. If you run it outside a git repo, or inside a repo that is not a BMAD project, it exits with a clear error instead of guessing.
 
 ---
 
@@ -186,20 +179,6 @@ So treat this repository today as a focused code extraction plus tests and docs,
 | `expect` | Required for interactive CLI session orchestration |
 | `copilot` or `claude` CLI | Actual BMAD agent backend |
 
-### Python packages
-
-Install from [`bmad_tui/requirements.txt`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/requirements.txt):
-
-```bash
-python3 -m pip install -r bmad_tui/requirements.txt
-```
-
-If you want to run the test suite after the import-path cleanup, install `pytest` as well:
-
-```bash
-python3 -m pip install pytest
-```
-
 ### External CLIs
 
 - GitHub Copilot CLI: `npm install -g @github/copilot-cli`
@@ -212,27 +191,23 @@ Copilot appears to be the primary and more fully exercised target in the current
 
 ## Getting Started
 
-Because this repo still has namespace drift, there are two different notions of "getting started":
-
-### 1. Understand the system today
-
-Read these files first:
-
-- [`bmad_tui/dashboard.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/dashboard.py)
-- [`bmad_tui/workflows.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/workflows.py)
-- [`bmad_tui/agent_runner.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/agent_runner.py)
-- [`bmad_tui/state.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/state.py)
-- [`bmad_tui/wizard.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/wizard.py)
-
-### 2. Prepare it for local execution
-
-The code currently expects to be imported as `tools.bmad_tui`. To run it as a standalone repo, the import namespace and launcher scripts need to be aligned first.
-
-Once that cleanup is done, the intended flow is:
+### 1. Install it once
 
 ```bash
-python3 -m pip install -r bmad_tui/requirements.txt
-python3 -m <normalized-entrypoint>
+./install.sh
+```
+
+### 2. Move into a BMAD project repo
+
+The launcher looks upward for a git root and checks that the repo contains BMAD folders:
+
+- `_bmad`
+- `_bmad-output`
+
+### 3. Launch it
+
+```bash
+tui
 ```
 
 The bootstrap wizard is designed to run automatically when no sprint status exists:
@@ -243,6 +218,16 @@ Create PRD
   → Create Epics & Stories
   → Sprint Planning
 ```
+
+### 4. Study the implementation
+
+If you want to understand how it works internally, start here:
+
+- [`bmad_tui/dashboard.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/dashboard.py)
+- [`bmad_tui/workflows.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/workflows.py)
+- [`bmad_tui/agent_runner.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/agent_runner.py)
+- [`bmad_tui/state.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/state.py)
+- [`bmad_tui/wizard.py`](/Users/comicbit/Projects/BMAD_METHOD_TUI/bmad_tui/wizard.py)
 
 ---
 
@@ -272,6 +257,9 @@ The dashboard tests and docs describe these main bindings:
 BMAD_METHOD_TUI/
 ├── README.md
 ├── bmad-tui.sh
+├── install.sh
+├── assets/
+│   └── bmad_tui_screenshot.png
 └── bmad_tui/
     ├── __main__.py
     ├── dashboard.py
@@ -283,7 +271,6 @@ BMAD_METHOD_TUI/
     ├── history.py
     ├── config.py
     ├── session.expect
-    ├── install.sh
     ├── requirements.txt
     └── tests/
 ```
@@ -292,7 +279,7 @@ BMAD_METHOD_TUI/
 
 ## Why This Project Matters
 
-Most BMAD workflows are powerful but fragmented across prompts, markdown artifacts, and external agent CLIs. This TUI tries to give that system an operational surface:
+Most BMAD workflows are powerful but fragmented across prompts, markdown artifacts, and external agent CLIs. This TUI gives that system an operational surface:
 
 - one dashboard instead of scattered files
 - one place to choose the next workflow

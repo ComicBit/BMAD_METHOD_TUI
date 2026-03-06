@@ -1,4 +1,4 @@
-"""Tests for tools/bmad_tui/workflows.py"""
+"""Tests for bmad_tui/workflows.py."""
 
 import sys
 from pathlib import Path
@@ -7,8 +7,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.models import AgentDef, Model, ProjectState, StoryStatus, WorkflowDef
-from tools.bmad_tui.workflows import (
+from bmad_tui.models import AgentDef, Model, ProjectState, StoryStatus, WorkflowDef
+from bmad_tui.workflows import (
     AGENTS,
     CANONICAL_PHASES,
     GLOBAL_ACTIONS,
@@ -454,9 +454,8 @@ class TestLoadAgents:
     def test_load_agents_other_category_contains_bmb_agents(self):
         agents = load_agents(_PROJECT_ROOT)
         other_names = {a.name for a in agents if a.category == "other"}
-        # BMB agents should be in "other"
-        assert any(n in other_names for n in ("Bond", "Morgan", "Wendy")), (
-            "Expected BMB agents in 'other' category"
+        assert any(n in other_names for n in ("Barry", "Creative & Meta")), (
+            "Expected non-sprint agents in 'other' category"
         )
 
     def test_load_agents_workflow_keys_all_valid(self):

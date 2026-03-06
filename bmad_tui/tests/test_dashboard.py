@@ -1,4 +1,4 @@
-"""Tests for home-only Dashboard in tools/bmad_tui/dashboard.py"""
+"""Tests for the home-only Dashboard in bmad_tui/dashboard.py."""
 
 import sys
 from pathlib import Path
@@ -10,9 +10,9 @@ import tempfile
 
 import yaml
 
-from tools.bmad_tui.dashboard import Dashboard, SearchScreen, StoryActionModal, WorkflowPickerModal, _set_story_status, _story_sort_key
-from tools.bmad_tui.history import HistoryEntry, append_history
-from tools.bmad_tui.models import Epic, Model, ProjectState, Story
+from bmad_tui.dashboard import Dashboard, SearchScreen, StoryActionModal, WorkflowPickerModal, _set_story_status, _story_sort_key
+from bmad_tui.history import HistoryEntry, append_history
+from bmad_tui.models import Epic, Model, ProjectState, Story
 
 
 def _story(story_id: str, status: str = "backlog", epic_id: str = "1") -> Story:
@@ -265,7 +265,7 @@ class TestActions:
         d = _dash_with_state(_state())
         d.notify = MagicMock()
         d._render_home = MagicMock()
-        from tools.bmad_tui import dashboard as mod
+        from bmad_tui import dashboard as mod
 
         old = d._state
         mod.load_state = MagicMock(return_value=_state(epics=[Epic(id="1", status="done")]))
@@ -392,8 +392,8 @@ class TestDashboardHistoryRowClickBehavior:
     """Tests for _DashboardHistoryRow single-click (Highlighted) and double-click (Selected)."""
 
     def _make_row(self) -> "object":
-        from tools.bmad_tui.dashboard import _DashboardHistoryRow
-        from tools.bmad_tui.history import HistoryEntry
+        from bmad_tui.dashboard import _DashboardHistoryRow
+        from bmad_tui.history import HistoryEntry
         entry = HistoryEntry(
             ts="2026-01-01 12:00", workflow="dev-story", agent="dev",
             model="sonnet", story_id="1-1", epic_id="1",
@@ -403,7 +403,7 @@ class TestDashboardHistoryRowClickBehavior:
 
     def test_single_click_posts_highlighted(self) -> None:
         from textual.events import Click
-        from tools.bmad_tui.dashboard import _DashboardHistoryRow
+        from bmad_tui.dashboard import _DashboardHistoryRow
         row = self._make_row()
         messages: list = []
         row.post_message = messages.append
@@ -416,7 +416,7 @@ class TestDashboardHistoryRowClickBehavior:
 
     def test_double_click_posts_selected(self) -> None:
         from textual.events import Click
-        from tools.bmad_tui.dashboard import _DashboardHistoryRow
+        from bmad_tui.dashboard import _DashboardHistoryRow
         row = self._make_row()
         messages: list = []
         row.post_message = messages.append
@@ -429,7 +429,7 @@ class TestDashboardHistoryRowClickBehavior:
 
     def test_triple_click_also_posts_selected(self) -> None:
         from textual.events import Click
-        from tools.bmad_tui.dashboard import _DashboardHistoryRow
+        from bmad_tui.dashboard import _DashboardHistoryRow
         row = self._make_row()
         messages: list = []
         row.post_message = messages.append
@@ -511,7 +511,7 @@ class TestGlobalHistoryRowClickBehavior:
     """Tests for _GlobalHistoryRow single-click (Highlighted) and double-click (Selected)."""
 
     def _make_entry(self):
-        from tools.bmad_tui.history import HistoryEntry
+        from bmad_tui.history import HistoryEntry
         return HistoryEntry(
             ts="2026-01-01 12:00", workflow="dev-story", agent="dev",
             model="sonnet", story_id="1-1", epic_id="1",
@@ -520,7 +520,7 @@ class TestGlobalHistoryRowClickBehavior:
 
     def test_single_click_posts_highlighted(self) -> None:
         from textual.events import Click
-        from tools.bmad_tui.dashboard import _GlobalHistoryRow
+        from bmad_tui.dashboard import _GlobalHistoryRow
         entry = self._make_entry()
         row = _GlobalHistoryRow(entry)
         messages: list = []
@@ -534,7 +534,7 @@ class TestGlobalHistoryRowClickBehavior:
 
     def test_double_click_posts_selected(self) -> None:
         from textual.events import Click
-        from tools.bmad_tui.dashboard import _GlobalHistoryRow
+        from bmad_tui.dashboard import _GlobalHistoryRow
         entry = self._make_entry()
         row = _GlobalHistoryRow(entry)
         messages: list = []

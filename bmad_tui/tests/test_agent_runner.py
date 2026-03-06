@@ -1,4 +1,4 @@
-"""Tests for tools/bmad_tui/agent_runner.py"""
+"""Tests for bmad_tui/agent_runner.py."""
 
 import subprocess
 import sys
@@ -9,9 +9,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.agent_runner import check_prerequisites, run_workflow, _extract_session_id, _extract_session_info, _find_latest_session_id
-from tools.bmad_tui.models import Model, ProjectState, Story
-from tools.bmad_tui.workflows import WORKFLOWS
+from bmad_tui.agent_runner import check_prerequisites, run_workflow, _extract_session_id, _extract_session_info, _find_latest_session_id
+from bmad_tui.models import Model, ProjectState, Story
+from bmad_tui.workflows import WORKFLOWS
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ class TestRunWorkflow:
         def fake_cleanup(cmd, cli_tool="copilot"):
             captured.append(list(cmd))
         with patch("shutil.which", side_effect=self._fake_which), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
+             patch("bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
              patch("subprocess.run", return_value=MagicMock(stdout="abc\n", returncode=0)):
             run_workflow(workflow_key, state, model, story=story)
         return captured
@@ -143,7 +143,7 @@ class TestRunWorkflow:
         story = _make_story(file_path=tmp_path / "story.md")
         state = _make_state(tmp_path, story)
         with patch("shutil.which", side_effect=self._fake_which), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup"), \
+             patch("bmad_tui.agent_runner._run_and_cleanup"), \
              patch("subprocess.run", return_value=MagicMock(stdout="", returncode=1)):
             result = run_workflow("dev-story", state, Model.SONNET, story=story)
         assert result is None
@@ -151,7 +151,7 @@ class TestRunWorkflow:
     def test_workflow_without_story_does_not_crash(self, tmp_path):
         state = _make_state(tmp_path, story=None)
         with patch("shutil.which", side_effect=self._fake_which), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup"), \
+             patch("bmad_tui.agent_runner._run_and_cleanup"), \
              patch("subprocess.run", return_value=MagicMock(stdout="", returncode=0)):
             run_workflow("sprint-planning", state, Model.SONNET, story=None)
 
@@ -164,7 +164,7 @@ class TestRunWorkflow:
         def fake_cleanup(cmd, cli_tool="copilot"):
             captured.append(list(cmd))
         with patch("shutil.which", side_effect=self._fake_which), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
+             patch("bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
              patch("subprocess.run", return_value=MagicMock(stdout="", returncode=0)):
             run_workflow("dev-story", state, Model.SONNET, story=story, session_id=uid)
         call_args = self._expect_call_args(captured)
@@ -179,7 +179,7 @@ class TestRunWorkflow:
         def fake_cleanup(cmd, cli_tool="copilot"):
             captured.append(list(cmd))
         with patch("shutil.which", side_effect=self._fake_which), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
+             patch("bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
              patch("subprocess.run", return_value=MagicMock(stdout="", returncode=0)):
             run_workflow("dev-story", state, Model.SONNET, story=story, session_id=uid)
         call_args = self._expect_call_args(captured)
@@ -335,11 +335,11 @@ class TestRunWorkflowSessionIdPriority:
             return (os.open(real_log, os.O_RDWR), real_log)
 
         with patch("shutil.which", return_value="/usr/bin/x"), \
-             patch("tools.bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
-             patch("tools.bmad_tui.agent_runner._find_latest_session_id", return_value=fs_session_id), \
+             patch("bmad_tui.agent_runner._run_and_cleanup", side_effect=fake_cleanup), \
+             patch("bmad_tui.agent_runner._find_latest_session_id", return_value=fs_session_id), \
              patch("tempfile.mkstemp", side_effect=fake_mkstemp), \
              patch("subprocess.run", return_value=MagicMock(stdout="main\n", returncode=0)), \
-             patch("tools.bmad_tui.agent_runner.is_trivial_entry", return_value=False):
+             patch("bmad_tui.agent_runner.is_trivial_entry", return_value=False):
             entry = run_workflow(
                 "dev-story", state, Model.SONNET,
                 story=story, session_id=resume_session_id,

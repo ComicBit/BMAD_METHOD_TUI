@@ -1,11 +1,11 @@
-"""Tests for tools/bmad_tui/history.py"""
+"""Tests for bmad_tui/history.py."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from tools.bmad_tui.history import HistoryEntry, append_history, has_zero_code_changes, load_history, purge_legacy_entries, purge_trivial_entries, is_trivial_entry
+from bmad_tui.history import HistoryEntry, append_history, has_zero_code_changes, load_history, purge_legacy_entries, purge_trivial_entries, is_trivial_entry
 
 
 def _make_entry(**kwargs) -> HistoryEntry:
