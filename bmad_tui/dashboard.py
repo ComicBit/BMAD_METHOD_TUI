@@ -1481,9 +1481,11 @@ class AgentPickerScreen(Screen):
         self._project_root = project_root
         self._branch = branch
         self._state = state
-        self._agents = load_agents(project_root)
-        self._sprint_agents = [a for a in self._agents if a.category == "sprint"]
-        self._other_agents = [a for a in self._agents if a.category != "sprint"]
+        all_agents = load_agents(project_root)
+        self._sprint_agents = [a for a in all_agents if a.category == "sprint"]
+        self._other_agents = [a for a in all_agents if a.category != "sprint"]
+        # Flattened list matching card display order (sprint first, then other)
+        self._agents = self._sprint_agents + self._other_agents
         self._selected_idx = initial_idx
         self._cards: list[_AgentCard] = []
         self._hovered_card_idx: int | None = None
@@ -3485,6 +3487,7 @@ class Dashboard(App):
         Binding("h", "history", "History"),
         Binding("d", "dev_session", "Dev Session"),
         Binding("c", "cli", "CLI"),
+        Binding("shift+h", "bmad_help", "BMad Help"),
         Binding("question_mark", "help", "Help", show=False),
     ]
 
@@ -4916,6 +4919,25 @@ class Dashboard(App):
 
     def action_help(self) -> None:
         self.push_screen(HelpScreen())
+
+    def action_bmad_help(self) -> None:
+        """Run bmad-help skill for context-aware assistance."""
+        if "help" not in WORKFLOWS:
+            self.notify("BMad Help workflow not available", severity="warning")
+            return
+        
+        # Run the help workflow in interactive mode
+        entry = run_workflow(
+            workflow_key="help",
+            state=self._state,
+            model=self.selected_model,
+            from_menu=True,  # Interactive mode
+            cli_tool=self._tui_config.cli_tool,
+        )
+        if entry:
+            append_history(self._project_root, entry)
+            self._history_entries = list(reversed(load_history(self._project_root)))
+        self.refresh(recompose=True)
 
     def action_search(self) -> None:
         history_entries = list(reversed(load_history(self._project_root)))

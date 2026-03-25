@@ -877,7 +877,38 @@ _AGENT_ID_TO_MANIFEST_KEY: dict[str, str] = {
 
 
 def load_agents(project_root: Path) -> list[AgentDef]:
-    """Dynamically load agents from ``.github/agents/bmad-agent-*.agent.md`` files.
+    """Dynamically load agents from BMAD installation.
+    
+    Discovery priority:
+    1. Parse _bmad/_config/skill-manifest.csv and agent files (full dynamic discovery)
+    2. Parse .github/agents/*.agent.md (legacy Aurora format)
+    3. Fall back to hardcoded AGENTS list (backward compat)
+    
+    Args:
+        project_root: Absolute path to the repository root.
+    
+    Returns:
+        List of AgentDef objects — Sprint agents first, then Other agents.
+    """
+    from .agent_discovery import discover_agents, merge_agents_with_manual, merge_workflows_with_manual
+    
+    # Try full BMAD discovery first (skill-manifest.csv + agent files)
+    discovered_agents, discovered_workflows = discover_agents(project_root)
+    
+    if discovered_agents:
+        # Update global WORKFLOWS dict with discovered workflows
+        global WORKFLOWS
+        WORKFLOWS = merge_workflows_with_manual(discovered_workflows, WORKFLOWS)
+        
+        # Merge discovered with hardcoded (manual takes priority)
+        return merge_agents_with_manual(discovered_agents, AGENTS)
+    
+    # Fall back to legacy .github/agents/ discovery
+    return _load_agents_legacy(project_root)
+
+
+def _load_agents_legacy(project_root: Path) -> list[AgentDef]:
+    """Legacy: Load agents from ``.github/agents/bmad-agent-*.agent.md`` files.
 
     Falls back to the static ``AGENTS`` list when no agent directory is found.
     Each discovered agent is enriched with display metadata from the BMAD
