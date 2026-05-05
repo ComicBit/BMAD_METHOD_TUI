@@ -8,16 +8,43 @@ from pathlib import Path
 
 
 class Model(str, Enum):
+    # Claude family
     SONNET = "claude-sonnet-4.6"
     OPUS = "claude-opus-4.6"
-    CODEX = "gpt-5.3-codex"
+    HAIKU = "claude-haiku-4-5"
+    # OpenAI / Codex family — o4-mini is the default for Codex CLI ≥0.118
+    CODEX = "o4-mini"
+    O3 = "o3"
+    GPT_4_1 = "gpt-4.1"
+    GPT_4O = "gpt-4o"
 
     def label(self) -> str:
         return {
-            Model.SONNET: "sonnet-4.6",
-            Model.OPUS: "opus-4.6",
-            Model.CODEX: "codex-5.3",
+            Model.SONNET: "Sonnet 4.6",
+            Model.OPUS: "Opus 4.6",
+            Model.HAIKU: "Haiku 4.5",
+            Model.CODEX: "o4-mini",
+            Model.O3: "o3",
+            Model.GPT_4_1: "gpt-4.1",
+            Model.GPT_4O: "gpt-4o",
         }[self]
+
+
+# Models available per harness (ordered: best first)
+MODELS_BY_HARNESS: dict[str, list[Model]] = {
+    "claude":  [Model.SONNET, Model.OPUS, Model.HAIKU],
+    "copilot": [Model.GPT_4_1, Model.GPT_4O, Model.O3, Model.SONNET],
+    "codex":   [Model.CODEX, Model.O3, Model.GPT_4_1, Model.GPT_4O],
+    "":        list(Model),  # fallback: show all
+}
+
+# Default model to use for each harness
+DEFAULT_MODEL_BY_HARNESS: dict[str, Model] = {
+    "claude":  Model.SONNET,
+    "copilot": Model.GPT_4_1,
+    "codex":   Model.CODEX,
+    "":        Model.SONNET,
+}
 
 
 class StoryStatus(str, Enum):
@@ -184,7 +211,7 @@ class AgentDef:
     role: str = ""       # e.g. "Architect"
     description: str = ""  # Short description of what this agent does
     category: str = "sprint"   # "sprint" (bmm/tea) or "other" (bmb/cis/core/…)
-    agent_id: str = ""         # CLI agent ID, e.g. "bmad-agent-bmm-dev"
+    agent_id: str = ""         # CLI agent ID, e.g. "bmad-agent-dev"
 
 
 @dataclass
