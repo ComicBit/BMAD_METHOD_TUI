@@ -131,9 +131,19 @@ def discover_agents_from_files(project_root: Path, workflows: list[DiscoveredWor
                 workflow_key = skill_to_workflow.get(skill_id, skill_id.replace('bmad-', ''))
                 workflow_keys.append(workflow_key)
             
-            # Derive agent_id from file name and module
-            file_stem = agent_file.stem  # e.g., "sm", "dev", "architect"
-            agent_id = f"bmad-agent-{module_dir.name}-{file_stem}"
+            # Derive agent_id from file name and module.
+            # BMAD 6.6 drops the module prefix for bmm agents: bmad-agent-{stem}
+            # For other modules: bmad-{module}-agent-{stem} (cis) or bmad-{module} (tea)
+            file_stem = agent_file.stem  # e.g., "dev", "architect"
+            module_name = module_dir.name
+            if module_name == "bmm":
+                agent_id = f"bmad-agent-{file_stem}"
+            elif module_name == "tea":
+                agent_id = "bmad-tea"
+            elif module_name == "cis":
+                agent_id = f"bmad-cis-agent-{file_stem}"
+            else:
+                agent_id = f"bmad-agent-{module_name}-{file_stem}"
             
             # Determine category (sprint vs other)
             category = "sprint" if module_dir.name in ["bmm", "tea"] else "other"
@@ -159,18 +169,15 @@ def discover_workflows_dict(project_root: Path, workflows: list[DiscoveredWorkfl
     for wf in workflows:
         workflow_key = wf.skill_id.replace('bmad-', '')
         
-        # Derive agent ID from skill ID
-        # e.g., bmad-dev-story → bmad-agent-bmm-dev (guess based on module)
+        # Derive default agent ID from module (BMAD 6.6 naming)
         if wf.module == "bmm":
-            agent_id = "bmad-agent-bmm-dev"  # default to dev agent
+            agent_id = "bmad-agent-dev"
         elif wf.module == "tea":
-            agent_id = "bmad-agent-tea-tea"
+            agent_id = "bmad-tea"
         elif wf.module == "cis":
-            agent_id = "bmad-agent-cis"
-        elif wf.module == "bmb":
-            agent_id = "bmad-agent-bmb"
-        elif wf.module == "core":
-            agent_id = "bmad-agent-bmad-master"
+            agent_id = f"bmad-cis-agent-{wf.skill_id.replace('bmad-cis-agent-', '')}"
+        elif wf.module in ("bmb", "core"):
+            agent_id = "bmad-agent-dev"
         else:
             agent_id = f"bmad-agent-{wf.module}"
         

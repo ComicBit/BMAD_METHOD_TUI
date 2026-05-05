@@ -60,7 +60,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Implementation ──────────────────────────────────────────────────────
     "dev-story": WorkflowDef(
         label="Dev Story",
-        agent="bmad-agent-bmm-dev",
+        agent="bmad-agent-dev",
         persona="Amelia (Dev) 💻",
         default_model=Model.SONNET,
         description="Implement all tasks/subtasks for the story, write tests, validate ACs.",
@@ -75,7 +75,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "code-review": WorkflowDef(
         label="CR Loop",
-        agent="bmad-agent-bmm-dev",
+        agent="bmad-agent-dev",
         persona="CR Loop 🤖",
         default_model=Model.CODEX,
         model_locked=True,
@@ -85,7 +85,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "create-story": WorkflowDef(
         label="Create Story",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Generate the story .md file from the epic, PRD, and architecture.",
@@ -100,7 +100,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "validate-story": WorkflowDef(
         label="Validate Story",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Review story file for completeness, ACs, and alignment before dev.",
@@ -115,7 +115,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "correct-course": WorkflowDef(
         label="Correct Course",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Mid-sprint pivot — reassess approach, update story, realign with PRD.",
@@ -131,7 +131,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Planning ────────────────────────────────────────────────────────────
     "sprint-planning": WorkflowDef(
         label="Sprint Planning",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Regenerate / update sprint-status.yaml from epic files.",
@@ -145,7 +145,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "sprint-status": WorkflowDef(
         label="Sprint Status",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Summarise current sprint, surface risks, route to next workflow.",
@@ -160,35 +160,33 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── New project bootstrap ────────────────────────────────────────────────
     "create-prd": WorkflowDef(
         label="Create PRD",
-        agent="bmad-agent-bmm-pm",
+        agent="bmad-agent-pm",
         persona="John (PM) 📋",
         default_model=Model.SONNET,
         description="Collaborative PRD creation through structured discovery.",
         bmad_phase="Planning",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the create-prd workflow.\n"
+            "Begin the create-prd workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     "create-architecture": WorkflowDef(
         label="Create Architecture",
-        agent="bmad-agent-bmm-architect",
+        agent="bmad-agent-architect",
         persona="Winston (Architect) 🏗️",
         default_model=Model.SONNET,
         description="Architectural decisions — patterns, boundaries, tech stack. [re-run]",
         bmad_phase="Planning",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the create-architecture workflow.\n"
+            "Begin the create-architecture workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     "create-epics-and-stories": WorkflowDef(
         label="Create Epics & Stories",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Transform PRD + architecture into implementation-ready epics. [re-run]",
@@ -202,7 +200,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "retrospective": WorkflowDef(
         label="Retrospective",
-        agent="bmad-agent-bmm-sm",
+        agent="bmad-agent-dev",
         persona="Bob (SM) 🏃",
         default_model=Model.SONNET,
         description="Run epic retrospective — capture learnings, update process docs.",
@@ -217,21 +215,20 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Architect / Winston ─────────────────────────────────────────────────
     "technical-research": WorkflowDef(
         label="Technical Research",
-        agent="bmad-agent-bmm-architect",
+        agent="bmad-agent-architect",
         persona="Winston (Architect) 🏗️",
         default_model=Model.SONNET,
         description="Deep-dive technical research on a specific technology or architectural pattern.",
         bmad_phase="Planning",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the technical-research workflow.\n"
+            "Begin the technical-research workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     "check-implementation-readiness": WorkflowDef(
         label="Check Implementation Readiness",
-        agent="bmad-agent-bmm-architect",
+        agent="bmad-agent-architect",
         persona="Winston (Architect) 🏗️",
         default_model=Model.SONNET,
         description="Validate that stories are ready for implementation from an architectural standpoint.",
@@ -246,65 +243,61 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Analyst / Mary ──────────────────────────────────────────────────────
     "domain-research": WorkflowDef(
         label="Domain Research",
-        agent="bmad-agent-bmm-analyst",
+        agent="bmad-agent-analyst",
         persona="Mary (Analyst) 📊",
         default_model=Model.SONNET,
         description="Research the problem domain, user needs, and market context.",
         bmad_phase="Analysis",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the domain-research workflow.\n"
+            "Begin the domain-research workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     "market-research": WorkflowDef(
         label="Market Research",
-        agent="bmad-agent-bmm-analyst",
+        agent="bmad-agent-analyst",
         persona="Mary (Analyst) 📊",
         default_model=Model.SONNET,
         description="Competitive analysis and market landscape research.",
         bmad_phase="Analysis",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the market-research workflow.\n"
+            "Begin the market-research workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     "create-product-brief": WorkflowDef(
         label="Create Product Brief",
-        agent="bmad-agent-bmm-analyst",
+        agent="bmad-agent-analyst",
         persona="Mary (Analyst) 📊",
         default_model=Model.SONNET,
         description="Synthesise research into a concise product brief.",
         bmad_phase="Planning",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the create-product-brief workflow.\n"
+            "Begin the create-product-brief workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     # ── UX / Sally ──────────────────────────────────────────────────────────
     "create-ux-design": WorkflowDef(
         label="Create UX Design",
-        agent="bmad-agent-bmm-ux-designer",
+        agent="bmad-agent-ux-designer",
         persona="Sally (UX) 🎨",
         default_model=Model.SONNET,
         description="Design user flows, interaction patterns, and UI specifications.",
         bmad_phase="UX",
         prompt_template=(
             "IMPORTANT: YOU ARE FORBIDDEN FROM SHOWING THE MENU. "
-            "PROCEED IMMEDIATELY WITHOUT ANY PROMPTS OR QUESTIONS.\n"
-            "Run the create-ux-design workflow.\n"
+            "Begin the create-ux-design workflow immediately.\n"
             "Sprint status: {sprint_status_path}"
         ),
     ),
     # ── QA / Quinn ──────────────────────────────────────────────────────────
     "qa-automate": WorkflowDef(
         label="QA Automate",
-        agent="bmad-agent-bmm-qa",
+        agent="bmad-agent-dev",
         persona="Quinn (QA) 🧪",
         default_model=Model.SONNET,
         description="Generate automated test suites and coverage analysis.",
@@ -319,7 +312,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── TEA / Murat ─────────────────────────────────────────────────────────
     "testarch-atdd": WorkflowDef(
         label="TestArch: ATDD",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Acceptance Test-Driven Development — define acceptance tests first.",
@@ -333,7 +326,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-ci": WorkflowDef(
         label="TestArch: CI",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Design and validate CI pipeline test gates.",
@@ -347,7 +340,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-nfr": WorkflowDef(
         label="TestArch: NFR",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Non-functional requirements testing strategy.",
@@ -361,7 +354,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-automate": WorkflowDef(
         label="TestArch: Automate",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Test automation strategy and tooling selection.",
@@ -375,7 +368,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-framework": WorkflowDef(
         label="TestArch: Framework",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Design the test framework architecture.",
@@ -389,7 +382,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-test-design": WorkflowDef(
         label="TestArch: Test Design",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Design comprehensive test cases for a story or feature.",
@@ -403,7 +396,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-test-review": WorkflowDef(
         label="TestArch: Test Review",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Review existing tests for coverage gaps and quality issues.",
@@ -417,7 +410,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "testarch-trace": WorkflowDef(
         label="TestArch: Trace",
-        agent="bmad-agent-tea",
+        agent="bmad-tea",
         persona="Murat (TEA) 🧪",
         default_model=Model.SONNET,
         description="Traceability matrix — link requirements to tests.",
@@ -432,7 +425,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Tech Writer / Paige ─────────────────────────────────────────────────
     "document-project": WorkflowDef(
         label="Document Project",
-        agent="bmad-agent-bmm-tech-writer",
+        agent="bmad-agent-tech-writer",
         persona="Paige (Tech Writer) 📚",
         default_model=Model.SONNET,
         description="Generate comprehensive project documentation.",
@@ -446,7 +439,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "generate-project-context": WorkflowDef(
         label="Generate Project Context",
-        agent="bmad-agent-bmm-tech-writer",
+        agent="bmad-agent-tech-writer",
         persona="Paige (Tech Writer) 📚",
         default_model=Model.SONNET,
         description="Generate a project context document for onboarding and reference.",
@@ -461,7 +454,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Quick Flow / Barry ──────────────────────────────────────────────────
     "quick-dev": WorkflowDef(
         label="Quick Dev",
-        agent="bmad-agent-bmm-quick-flow-solo-dev",
+        agent="bmad-agent-dev",
         persona="Barry (Quick Flow) 🚀",
         default_model=Model.SONNET,
         description="Rapid implementation with minimum ceremony.",
@@ -475,7 +468,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "quick-spec": WorkflowDef(
         label="Quick Spec",
-        agent="bmad-agent-bmm-quick-flow-solo-dev",
+        agent="bmad-agent-dev",
         persona="Barry (Quick Flow) 🚀",
         default_model=Model.SONNET,
         description="Rapid spec creation — lean, actionable, low ceremony.",
@@ -490,7 +483,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── Creative & Meta ─────────────────────────────────────────────────────
     "brainstorming": WorkflowDef(
         label="Brainstorming",
-        agent="bmad-agent-cis-brainstorming-coach",
+        agent="bmad-cis-agent-brainstorming-coach",
         persona="Carson (Brainstorming) 🧠",
         default_model=Model.SONNET,
         description="Interactive brainstorming session using diverse creative techniques.",
@@ -503,7 +496,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "party-mode": WorkflowDef(
         label="Party Mode",
-        agent="bmad-agent-bmad-master",
+        agent="bmad-agent-dev",
         persona="BMad Master 🧠",
         default_model=Model.SONNET,
         description="Multi-agent party mode — all BMAD agents collaborate simultaneously.",
@@ -516,7 +509,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "create-agent": WorkflowDef(
         label="Create Agent",
-        agent="bmad-agent-bmad-master",
+        agent="bmad-agent-dev",
         persona="BMad Master 🧠",
         default_model=Model.SONNET,
         description="Create a new BMAD agent definition file.",
@@ -531,7 +524,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "create-workflow": WorkflowDef(
         label="Create Workflow",
-        agent="bmad-agent-bmad-master",
+        agent="bmad-agent-dev",
         persona="BMad Master 🧠",
         default_model=Model.OPUS,
         description="Create a new BMAD workflow YAML definition.",
@@ -547,7 +540,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── BMB — Agent Builder (Bond) ──────────────────────────────────────────
     "edit-agent": WorkflowDef(
         label="Edit Agent",
-        agent="bmad-agent-bmb-agent-builder",
+        agent="bmad-agent-dev",
         persona="Bond (Agent Builder) 🤖",
         default_model=Model.SONNET,
         description="Edit an existing BMAD agent definition file.",
@@ -561,7 +554,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "validate-agent": WorkflowDef(
         label="Validate Agent",
-        agent="bmad-agent-bmb-agent-builder",
+        agent="bmad-agent-dev",
         persona="Bond (Agent Builder) 🤖",
         default_model=Model.SONNET,
         description="Validate an existing BMAD agent against best practices.",
@@ -576,7 +569,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── BMB — Module Builder (Morgan) ───────────────────────────────────────
     "create-module-brief": WorkflowDef(
         label="Create Module Brief",
-        agent="bmad-agent-bmb-module-builder",
+        agent="bmad-agent-dev",
         persona="Morgan (Module Builder) 🏗️",
         default_model=Model.SONNET,
         description="Create a product brief for a new BMAD module.",
@@ -590,7 +583,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "create-module": WorkflowDef(
         label="Create Module",
-        agent="bmad-agent-bmb-module-builder",
+        agent="bmad-agent-dev",
         persona="Morgan (Module Builder) 🏗️",
         default_model=Model.SONNET,
         description="Create a complete BMAD module with agents, workflows, and infrastructure.",
@@ -604,7 +597,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "edit-module": WorkflowDef(
         label="Edit Module",
-        agent="bmad-agent-bmb-module-builder",
+        agent="bmad-agent-dev",
         persona="Morgan (Module Builder) 🏗️",
         default_model=Model.SONNET,
         description="Edit an existing BMAD module while maintaining coherence.",
@@ -618,7 +611,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "validate-module": WorkflowDef(
         label="Validate Module",
-        agent="bmad-agent-bmb-module-builder",
+        agent="bmad-agent-dev",
         persona="Morgan (Module Builder) 🏗️",
         default_model=Model.SONNET,
         description="Run compliance checks on a BMAD module against best practices.",
@@ -633,7 +626,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── BMB — Workflow Builder (Wendy) ──────────────────────────────────────
     "edit-workflow": WorkflowDef(
         label="Edit Workflow",
-        agent="bmad-agent-bmb-workflow-builder",
+        agent="bmad-agent-dev",
         persona="Wendy (Workflow Builder) 🔄",
         default_model=Model.SONNET,
         description="Edit an existing BMAD workflow while maintaining integrity.",
@@ -647,7 +640,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "validate-workflow": WorkflowDef(
         label="Validate Workflow",
-        agent="bmad-agent-bmb-workflow-builder",
+        agent="bmad-agent-dev",
         persona="Wendy (Workflow Builder) 🔄",
         default_model=Model.SONNET,
         description="Run validation checks on a BMAD workflow against best practices.",
@@ -661,7 +654,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     ),
     "rework-workflow": WorkflowDef(
         label="Rework Workflow",
-        agent="bmad-agent-bmb-workflow-builder",
+        agent="bmad-agent-dev",
         persona="Wendy (Workflow Builder) 🔄",
         default_model=Model.SONNET,
         description="Rework a workflow to a V6-compliant version.",
@@ -676,7 +669,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── CIS — Creative Problem Solver (Dr. Quinn) ───────────────────────────
     "problem-solving": WorkflowDef(
         label="Problem Solving",
-        agent="bmad-agent-cis-creative-problem-solver",
+        agent="bmad-cis-agent-creative-problem-solver",
         persona="Dr. Quinn (Problem Solver) 🔬",
         default_model=Model.SONNET,
         description="Apply systematic problem-solving to crack complex challenges.",
@@ -691,7 +684,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── CIS — Design Thinking Coach (Maya) ──────────────────────────────────
     "design-thinking": WorkflowDef(
         label="Design Thinking",
-        agent="bmad-agent-cis-design-thinking-coach",
+        agent="bmad-cis-agent-design-thinking-coach",
         persona="Maya (Design Thinking) 🎨",
         default_model=Model.SONNET,
         description="Guide human-centered design processes using empathy-driven methodologies.",
@@ -706,7 +699,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── CIS — Innovation Strategist (Victor) ────────────────────────────────
     "innovation-strategy": WorkflowDef(
         label="Innovation Strategy",
-        agent="bmad-agent-cis-innovation-strategist",
+        agent="bmad-cis-agent-innovation-strategist",
         persona="Victor (Innovation) ⚡",
         default_model=Model.SONNET,
         description="Identify disruption opportunities and architect business model innovation.",
@@ -721,7 +714,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── CIS — Presentation Master (Caravaggio) ───────────────────────────────
     "presentation": WorkflowDef(
         label="Presentation",
-        agent="bmad-agent-cis-presentation-master",
+        agent="bmad-cis-agent-presentation-master",
         persona="Caravaggio (Presentation) 🎨",
         default_model=Model.SONNET,
         description="Create visually stunning presentations and communication materials.",
@@ -736,7 +729,7 @@ WORKFLOWS: dict[str, WorkflowDef] = {
     # ── CIS — Storyteller (Sophia) ───────────────────────────────────────────
     "storytelling": WorkflowDef(
         label="Storytelling",
-        agent="bmad-agent-cis-storyteller",
+        agent="bmad-cis-agent-storyteller",
         persona="Sophia (Storyteller) 📖",
         default_model=Model.SONNET,
         description="Craft compelling narratives using proven story frameworks.",
@@ -779,14 +772,14 @@ AGENTS: list[AgentDef] = [
                        "create-epics-and-stories"],
         role="Scrum Master",
         description="Sprint planning and agile ceremonies specialist. Creates stories, manages the backlog, and keeps the team moving forward.",
-        agent_id="bmad-agent-bmm-sm",
+        agent_id="bmad-agent-dev",
     ),
     AgentDef(
         name="Amelia", persona="Amelia (Dev) 💻", icon="💻",
         workflow_keys=["dev-story", "code-review"],
         role="Developer",
         description="Story execution specialist. Writes code and tests with strict adherence to story ACs and team standards.",
-        agent_id="bmad-agent-bmm-dev",
+        agent_id="bmad-agent-dev",
     ),
     AgentDef(
         name="Winston", persona="Winston (Architect) 🏗️", icon="🏗️",
@@ -794,35 +787,35 @@ AGENTS: list[AgentDef] = [
                        "check-implementation-readiness"],
         role="Architect",
         description="System design specialist. Defines technical architecture, evaluates implementation readiness, and conducts technical research.",
-        agent_id="bmad-agent-bmm-architect",
+        agent_id="bmad-agent-architect",
     ),
     AgentDef(
         name="Mary", persona="Mary (Analyst) 📊", icon="📊",
         workflow_keys=["domain-research", "market-research", "create-product-brief"],
         role="Business Analyst",
         description="Domain and market research specialist. Elicits requirements, performs competitive analysis, and creates product briefs.",
-        agent_id="bmad-agent-bmm-analyst",
+        agent_id="bmad-agent-analyst",
     ),
     AgentDef(
         name="John", persona="John (PM) 📋", icon="📋",
         workflow_keys=["create-prd", "create-epics-and-stories"],
         role="Product Manager",
         description="Product strategy specialist. Creates PRDs, defines epics and stories, and aligns stakeholders.",
-        agent_id="bmad-agent-bmm-pm",
+        agent_id="bmad-agent-pm",
     ),
     AgentDef(
         name="Sally", persona="Sally (UX) 🎨", icon="🎨",
         workflow_keys=["create-ux-design"],
         role="UX Designer",
         description="User experience specialist. Designs interaction flows, UI patterns, and experience strategy.",
-        agent_id="bmad-agent-bmm-ux-designer",
+        agent_id="bmad-agent-ux-designer",
     ),
     AgentDef(
         name="Quinn", persona="Quinn (QA) 🧪", icon="🧪",
         workflow_keys=["qa-automate"],
         role="QA Engineer",
         description="Quality assurance specialist. Automates tests, covers critical paths, and ensures release quality.",
-        agent_id="bmad-agent-bmm-qa",
+        agent_id="bmad-agent-dev",
     ),
     AgentDef(
         name="Murat", persona="Murat (TEA) 🔬", icon="🔬",
@@ -831,14 +824,14 @@ AGENTS: list[AgentDef] = [
                        "testarch-trace"],
         role="Test Architect",
         description="Test architecture specialist. Designs ATDD frameworks, CI quality gates, and NFR test strategies.",
-        agent_id="bmad-agent-tea-tea",
+        agent_id="bmad-tea",
     ),
     AgentDef(
         name="Paige", persona="Paige (Tech Writer) 📚", icon="📚",
         workflow_keys=["document-project", "generate-project-context"],
         role="Technical Writer",
         description="Documentation specialist. Writes project docs, generates context files, and maintains living documentation.",
-        agent_id="bmad-agent-bmm-tech-writer",
+        agent_id="bmad-agent-tech-writer",
     ),
     AgentDef(
         name="Barry", persona="Barry (Quick Flow) 🚀", icon="🚀",
@@ -846,7 +839,7 @@ AGENTS: list[AgentDef] = [
         role="Quick Flow Dev",
         description="Rapid delivery specialist. Creates lean specs and ships minimal-ceremony features fast.",
         category="other",
-        agent_id="bmad-agent-bmm-quick-flow-solo-dev",
+        agent_id="bmad-agent-dev",
     ),
     AgentDef(
         name="Creative & Meta", persona="Creative & Meta 🎭", icon="🎭",
@@ -854,7 +847,7 @@ AGENTS: list[AgentDef] = [
         role="Meta Agent",
         description="Creative and meta workflows. Brainstorming, party mode, and creation of new agents and workflows.",
         category="other",
-        agent_id="bmad-agent-bmad-master",
+        agent_id="bmad-agent-dev",
     ),
 ]
 
@@ -871,8 +864,7 @@ _SPRINT_MODULES = {"bmm", "tea"}
 
 # Mapping from agent file stem → manifest "name" key (handles non-standard naming)
 _AGENT_ID_TO_MANIFEST_KEY: dict[str, str] = {
-    "bmad-agent-bmad-master": "bmad-master",
-    "bmad-agent-tea-tea": "tea",
+    "bmad-tea": "tea",
 }
 
 
@@ -947,16 +939,12 @@ def _load_agents_legacy(project_root: Path) -> list[AgentDef]:
     agent_workflow_map: dict[str, list[str]] = {}
     for wf_key, wf in WORKFLOWS.items():
         agent_workflow_map.setdefault(wf.agent, []).append(wf_key)
-    # Legacy alias: "bmad-master" agent also reachable as the full agent ID
-    if "bmad-master" in agent_workflow_map:
-        agent_workflow_map.setdefault("bmad-agent-bmad-master", []).extend(
-            agent_workflow_map["bmad-master"]
-        )
-    # Legacy alias: TEA workflows registered as "bmad-agent-tea" map to file "bmad-agent-tea-tea"
-    if "bmad-agent-tea" in agent_workflow_map:
-        agent_workflow_map.setdefault("bmad-agent-tea-tea", []).extend(
-            agent_workflow_map["bmad-agent-tea"]
-        )
+    # Legacy alias: old "bmad-agent-tea"/"bmad-agent-tea-tea" keys map to "bmad-tea" (6.6)
+    for old_key in ("bmad-agent-tea", "bmad-agent-tea-tea"):
+        if old_key in agent_workflow_map:
+            agent_workflow_map.setdefault("bmad-tea", []).extend(
+                agent_workflow_map[old_key]
+            )
 
     # ------------------------------------------------------------------
     # 3. Scan agent files
