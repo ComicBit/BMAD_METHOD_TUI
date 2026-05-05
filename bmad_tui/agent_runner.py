@@ -66,8 +66,12 @@ def _find_latest_session_id(
 
     For copilot: watches ``~/.copilot/session-state/<uuid>/`` directories.
     For claude:  watches ``~/.claude/projects/<uuid>.jsonl`` files.
+    For codex:   no session persistence — always returns "".
     *_sessions_dir* is exposed only for unit-testing.
     """
+    if cli_tool == "codex":
+        return ""
+
     if cli_tool == "claude":
         sessions_dir = _sessions_dir or (Path.home() / ".claude" / "projects")
         if not sessions_dir.exists():
@@ -203,18 +207,21 @@ def _run_cr_loop(cmd: list[str], project_root: Path, cli_tool: str = "copilot") 
 
 def available_clis() -> list[str]:
     """Return a list of installed CLI tools that can run agent sessions."""
-    return [cli for cli in ("copilot", "claude") if shutil.which(cli)]
+    return [cli for cli in ("copilot", "claude", "codex") if shutil.which(cli)]
 
 
 def check_prerequisites() -> list[str]:
     """Return a list of missing prerequisite tool names.
 
     Returns an error only if *no* supported CLI is installed, plus if expect is missing.
+    Codex does not need expect (it spawns directly), but copilot and claude still do.
     """
     missing = []
-    if not available_clis():
-        missing.append("copilot or claude")
-    if not shutil.which("expect"):
+    installed = available_clis()
+    if not installed:
+        missing.append("copilot, claude, or codex")
+    non_codex = [c for c in installed if c != "codex"]
+    if non_codex and not shutil.which("expect"):
         missing.append("expect")
     return missing
 
@@ -222,7 +229,7 @@ def check_prerequisites() -> list[str]:
 def run_workflow(
     workflow_key: str,
     state: ProjectState,
-    model: Model,
+    model: "str | Model",
     story: Story | None = None,
     epic_id: str | None = None,
     session_id: str = "",
@@ -230,6 +237,7 @@ def run_workflow(
     auto_despawn: bool = False,
     cli_tool: str = "copilot",
     task_name: str = "",
+    effort: str = "medium",
 ) -> HistoryEntry | None:
     """Spawn a CLI agent session for the given workflow.
 
@@ -244,9 +252,14 @@ def run_workflow(
     timer fires after the task-done chime *if* ``auto_despawn`` is True and the
     worktree shows at least one change since the session started.
     ``cli_tool`` selects which CLI binary to spawn: "copilot" (default) or "claude".
+    ``model`` may be a ``Model`` enum member or a raw model-ID string.
     """
     wf: WorkflowDef = WORKFLOWS[workflow_key]
-    actual_model = wf.default_model if wf.model_locked else model
+    # Resolve to a plain string; wf.default_model.value when locked, else caller's value.
+    if wf.model_locked:
+        actual_model_str = wf.default_model.value
+    else:
+        actual_model_str = model.value if isinstance(model, Model) else str(model)
 
     story_id = story.id if story else ""
     story_slug = story_id.replace("-", "_").replace("/", "_").lower()
@@ -281,7 +294,7 @@ def run_workflow(
     cmd = [
         "expect", "-f", str(_EXPECT_SCRIPT),
         "--",
-        actual_model.value,
+        actual_model_str,
         wf.agent,
         prompt if not session_id else "",
         str(state.project_root),
@@ -291,6 +304,7 @@ def run_workflow(
         "1" if is_yolo else "0",                     # arg 7: is_yolo
         "1" if (is_yolo and auto_despawn) else "0",  # arg 8: auto_despawn
         cli_tool,                                    # arg 9: cli binary name
+        effort,                                      # arg 10: reasoning effort
     ]
 
     if workflow_key == "code-review":
@@ -319,7 +333,7 @@ def run_workflow(
         ts=ts,
         workflow=workflow_key,
         agent=wf.agent,
-        model=actual_model.value,
+        model=actual_model_str,
         story_id=story_id,
         epic_id=epic,
         branch=_current_branch(state.project_root),
