@@ -241,12 +241,18 @@ class TestDefaultStoryIdForSprint:
 
 
 class TestActions:
-    def test_model_cycles(self) -> None:
+    def test_model_effort_cycles(self) -> None:
+        from bmad_tui.model_fetcher import EFFORT_LEVELS
         d = _dash_with_state(_state())
         d.notify = MagicMock()
-        before = d.selected_model
-        d.action_model()
-        assert d.selected_model != before
+        d._refresh_header_model = MagicMock()
+        harness = d._tui_config.cli_tool
+        levels = EFFORT_LEVELS.get(harness, EFFORT_LEVELS[""])
+        initial = d._tui_config.effort
+        d.action_effort_up()
+        after = d._tui_config.effort
+        assert after in levels
+        assert after != initial or len(levels) == 1
 
     def test_filter_cycles(self) -> None:
         d = _dash_with_state(_state())

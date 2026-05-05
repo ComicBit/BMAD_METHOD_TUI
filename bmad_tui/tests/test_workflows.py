@@ -377,12 +377,12 @@ class TestBmbWorkflows:
             assert key in WORKFLOWS, f"Missing bmb workflow: {key!r}"
 
     def test_bmb_workflows_have_correct_agent_id(self):
-        for key in self.BMB_AGENT_BUILDER_KEYS:
-            assert WORKFLOWS[key].agent == "bmad-agent-bmb-agent-builder"
-        for key in self.BMB_MODULE_BUILDER_KEYS:
-            assert WORKFLOWS[key].agent == "bmad-agent-bmb-module-builder"
-        for key in self.BMB_WORKFLOW_BUILDER_KEYS:
-            assert WORKFLOWS[key].agent == "bmad-agent-bmb-workflow-builder"
+        # BMAD 6.6: no dedicated BMB agents; all BMB workflows use bmad-agent-dev
+        all_bmb_keys = self.BMB_AGENT_BUILDER_KEYS + self.BMB_MODULE_BUILDER_KEYS + self.BMB_WORKFLOW_BUILDER_KEYS
+        for key in all_bmb_keys:
+            assert WORKFLOWS[key].agent == "bmad-agent-dev", (
+                f"BMB workflow {key!r} should use bmad-agent-dev (no dedicated BMB agents in 6.6)"
+            )
 
     def test_bmb_workflows_are_creative_meta_phase(self):
         for key in self.BMB_AGENT_BUILDER_KEYS + self.BMB_MODULE_BUILDER_KEYS + self.BMB_WORKFLOW_BUILDER_KEYS:
@@ -403,12 +403,13 @@ class TestCisWorkflows:
             assert WORKFLOWS[key].bmad_phase == "Creative & Meta", f"{key} should be Creative & Meta"
 
     def test_cis_workflows_have_valid_agents(self):
+        # BMAD 6.6: CIS agents renamed from bmad-agent-cis-* to bmad-cis-agent-*
         expected_agents = {
-            "problem-solving": "bmad-agent-cis-creative-problem-solver",
-            "design-thinking": "bmad-agent-cis-design-thinking-coach",
-            "innovation-strategy": "bmad-agent-cis-innovation-strategist",
-            "presentation": "bmad-agent-cis-presentation-master",
-            "storytelling": "bmad-agent-cis-storyteller",
+            "problem-solving": "bmad-cis-agent-creative-problem-solver",
+            "design-thinking": "bmad-cis-agent-design-thinking-coach",
+            "innovation-strategy": "bmad-cis-agent-innovation-strategist",
+            "presentation": "bmad-cis-agent-presentation-master",
+            "storytelling": "bmad-cis-agent-storyteller",
         }
         for key, expected_agent in expected_agents.items():
             assert WORKFLOWS[key].agent == expected_agent, (

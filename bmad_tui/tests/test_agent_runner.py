@@ -58,8 +58,8 @@ class TestCheckPrerequisites:
     def test_both_missing(self):
         with patch("shutil.which", return_value=None):
             missing = check_prerequisites()
-        assert "copilot or claude" in missing
-        assert "expect" in missing
+        assert any("copilot" in m for m in missing)
+        assert "expect" not in missing  # no non-codex CLIs installed, so expect not required
 
     def test_returns_list_type(self):
         with patch("shutil.which", return_value="/usr/bin/x"):

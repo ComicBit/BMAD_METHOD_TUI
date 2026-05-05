@@ -169,7 +169,7 @@ class TestModel:
         assert Model.OPUS.value == "claude-opus-4.6"
 
     def test_codex_value(self):
-        assert Model.CODEX.value == "gpt-5.3-codex"
+        assert Model.CODEX.value == "o4-mini"
 
     def test_labels_are_short(self):
         for m in Model:
