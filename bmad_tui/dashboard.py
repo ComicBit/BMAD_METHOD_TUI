@@ -28,6 +28,7 @@ from rich.console import RenderableType
 
 from .agent_runner import available_clis, check_prerequisites, run_workflow
 from .config import TuiConfig, load_config, save_config
+from .wizard import _STEPS, _step_done
 from .history import HistoryEntry, append_history, has_zero_code_changes, load_history, purge_legacy_entries, purge_trivial_entries
 from .models import AgentDef, Epic, Model, ProjectState, STATUS_BADGES, Story, StoryStatus
 from .state import _phase_summary, load_state, project_phase
@@ -84,20 +85,20 @@ class _MpoOption(Widget):
     """
 
     class Selected(Message):
-        def __init__(self, model: Model) -> None:
+        def __init__(self, model_id: str) -> None:
             super().__init__()
-            self.model = model
+            self.model_id = model_id
 
-    def __init__(self, model: Model, current: bool) -> None:
+    def __init__(self, model_id: str, tier: str = "", current: bool = False) -> None:
         super().__init__(classes="mpo-opt -current" if current else "mpo-opt")
-        self._model = model
+        self._model_id = model_id
 
     def compose(self) -> ComposeResult:
         marker = "◀" if self.has_class("-current") else " "
-        yield Static(f"{marker} {self._model.value}", classes="mpo-opt-label")
+        yield Static(f"{marker} {self._model_id}", classes="mpo-opt-label")
 
     def on_click(self) -> None:
-        self.post_message(self.Selected(self._model))
+        self.post_message(self.Selected(self._model_id))
 
 
 class ModelPickerOverlay(ModalScreen):
@@ -151,25 +152,29 @@ class ModelPickerOverlay(ModalScreen):
         Binding("escape", "close", "Close", show=False),
     ]
 
-    def __init__(self, current: Model, anchor: tuple[int, int, int, int] = (0, 0, 40, 3)) -> None:
+    def __init__(self, current: "str | Model", anchor: tuple[int, int, int, int] = (0, 0, 40, 3), harness: str = "") -> None:
         super().__init__()
-        self._current = current
+        self._current_id = current.value if hasattr(current, "value") else str(current)
         self._anchor = anchor
+        self._harness = harness
 
     def compose(self) -> ComposeResult:
+        from .model_fetcher import fetch_models
+        models = fetch_models(self._harness)
         with Container(id="mpo-outer"):
             yield Static("select model", id="mpo-header-label")
-            for m in Model:
-                yield _MpoOption(m, current=(m == self._current))
+            for m in models:
+                mid = m.id
+                yield _MpoOption(mid, tier=m.tier, current=(mid == self._current_id))
 
     def on_mount(self) -> None:
         ax, ay, aw, ah = self._anchor
         outer = self.query_one("#mpo-outer")
         outer.styles.offset = (ax, ay + ah)
-        outer.styles.width = max(40, aw)
+        outer.styles.width = max(44, aw)
 
     def on__mpo_option_selected(self, event: _MpoOption.Selected) -> None:
-        self.dismiss(event.model)
+        self.dismiss(event.model_id)
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -183,9 +188,9 @@ class _ModelPicker(Widget):
     """Model label + trigger row. Clicking opens ModelPickerOverlay anchored below — same pattern as status picker."""
 
     class Changed(Message):
-        def __init__(self, model: Model) -> None:
+        def __init__(self, model_id: str) -> None:
             super().__init__()
-            self.model = model
+            self.model_id = model_id
 
     DEFAULT_CSS = """
     _ModelPicker {
@@ -211,38 +216,39 @@ class _ModelPicker(Widget):
     }
     """
 
-    def __init__(self, initial_model: Model = Model.SONNET) -> None:
+    def __init__(self, initial_model: "str | Model" = Model.SONNET) -> None:
         super().__init__()
-        self._model = initial_model
+        self._model_id: str = initial_model.value if hasattr(initial_model, "value") else str(initial_model)
 
     @property
-    def model(self) -> Model:
-        return self._model
+    def model_id(self) -> str:
+        return self._model_id
 
     def compose(self) -> ComposeResult:
         yield Static("model", classes="mp-label")
         yield Horizontal(
-            Static(f"{self._model.value}   ▼", classes="mp-val"),
+            Static(f"{self._model_id}   ▼", classes="mp-val"),
             classes="mp-row",
         )
 
     def _open_overlay(self) -> None:
         row = self.query_one(".mp-row")
         r = row.region
+        harness = getattr(getattr(self.app, "_tui_config", None), "cli_tool", "")
         self.app.push_screen(
-            ModelPickerOverlay(self._model, anchor=(r.x, r.y, r.width, r.height)),
+            ModelPickerOverlay(self._model_id, anchor=(r.x, r.y, r.width, r.height), harness=harness),
             self._on_model_chosen,
         )
 
-    def _on_model_chosen(self, model: Model | None) -> None:
-        if model is None:
+    def _on_model_chosen(self, model_id: str | None) -> None:
+        if not model_id:
             return
-        self.set_model(model)
+        self.set_model_id(model_id)
 
-    def set_model(self, model: Model) -> None:
-        self._model = model
-        self.query_one(".mp-val", Static).update(f"{model.value}   ▼")
-        self.post_message(self.Changed(model))
+    def set_model_id(self, model_id: str) -> None:
+        self._model_id = model_id
+        self.query_one(".mp-val", Static).update(f"{model_id}   ▼")
+        self.post_message(self.Changed(model_id))
 
     def toggle(self) -> None:
         self._open_overlay()
@@ -661,7 +667,7 @@ class StoryActionModal(ModalScreen):
         Binding("p", "toggle_content", "Expand content", show=False),
     ]
 
-    def __init__(self, story: Story, model: Model, sprint_status_path: Path, project_root: Path | None = None, auto_despawn: bool = True) -> None:
+    def __init__(self, story: Story, model: "str | Model", sprint_status_path: Path, project_root: Path | None = None, auto_despawn: bool = True) -> None:
         super().__init__()
         self._story = story
         self._sprint_status_path = sprint_status_path
@@ -772,9 +778,9 @@ class StoryActionModal(ModalScreen):
     def _toggle_dropdown(self) -> None:
         self.query_one(_ModelPicker).toggle()
 
-    def _select_model(self, model: Model) -> None:
-        self.query_one(_ModelPicker).set_model(model)
-        self._model = model
+    def _select_model(self, model_id: str) -> None:
+        self.query_one(_ModelPicker).set_model_id(model_id)
+        self._model = model_id
 
     def _open_status_overlay(self) -> None:
         row = self.query_one("#modal-status-row")
@@ -815,8 +821,7 @@ class StoryActionModal(ModalScreen):
         self._action_rows = list(self.query(_ActionRow))
 
     def on__model_picker_changed(self, message: _ModelPicker.Changed) -> None:
-        # Keep self._model in sync for history-entry fallback usage
-        self._model = message.model
+        self._model = message.model_id
 
     def on__action_row_selected(self, message: _ActionRow.Selected) -> None:
         self._set_active(message.idx)
@@ -850,16 +855,12 @@ class StoryActionModal(ModalScreen):
     def action_run(self) -> None:
         if self._selected_history is not None:
             workflow, model_str, session_id = self._selected_history
-            try:
-                model = Model(model_str)
-            except ValueError:
-                model = self.query_one(_ModelPicker).model
-            self.dismiss((workflow, model, session_id, self._auto_despawn))
+            self.dismiss((workflow, model_str, session_id, self._auto_despawn))
             return
         if not self._modal_actions:
             return
         key, label, _ = self._modal_actions[self._selected_idx]
-        self.dismiss((key, self.query_one(_ModelPicker).model, "", self._auto_despawn))
+        self.dismiss((key, self.query_one(_ModelPicker).model_id, "", self._auto_despawn))
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -1036,7 +1037,7 @@ class WorkflowPickerModal(ModalScreen):
         Binding("tab", "cycle_model", "Model", show=False),
     ]
 
-    def __init__(self, agent: AgentDef | None = None, initial_model: Model = Model.SONNET, initial_workflow_key: str | None = None) -> None:
+    def __init__(self, agent: AgentDef | None = None, initial_model: "str | Model" = Model.SONNET, initial_workflow_key: str | None = None) -> None:
         super().__init__()
         self._agent = agent
         self._model = initial_model
@@ -1132,15 +1133,20 @@ class WorkflowPickerModal(ModalScreen):
 
     def action_run(self) -> None:
         key, _wf = self._items[self._selected_idx]
-        self.dismiss((key, self.query_one(_ModelPicker).model))
+        self.dismiss((key, self.query_one(_ModelPicker).model_id))
 
     def action_close(self) -> None:
         self.dismiss(None)
 
     def action_cycle_model(self) -> None:
+        from .model_fetcher import fetch_models
         picker = self.query_one(_ModelPicker)
-        models = list(Model)
-        picker.set_model(models[(models.index(picker.model) + 1) % len(models)])
+        harness = getattr(getattr(self.app, "_tui_config", None), "cli_tool", "")
+        models = fetch_models(harness)
+        cur = picker.model_id
+        ids = [m.id for m in models]
+        idx = ids.index(cur) if cur in ids else 0
+        picker.set_model_id(ids[(idx + 1) % len(ids)])
 
     def _find_wf_card(self, widget) -> tuple[Container, int] | None:
         """Walk up the widget tree to find a workflow card with _wf_index."""
@@ -1685,16 +1691,21 @@ class AgentPickerScreen(Screen):
         self._set_active(self._selected_idx + 5)
 
     def action_cycle_model(self) -> None:
+        from .model_fetcher import fetch_models
         picker = self.query_one(_ModelPicker)
-        models = list(Model)
-        picker.set_model(models[(models.index(picker.model) + 1) % len(models)])
+        harness = getattr(getattr(self.app, "_tui_config", None), "cli_tool", "")
+        models = fetch_models(harness)
+        cur = picker.model_id
+        ids = [m.id for m in models]
+        idx = ids.index(cur) if cur in ids else 0
+        picker.set_model_id(ids[(idx + 1) % len(ids)])
 
     def action_confirm(self) -> None:
         agent = self._agents[self._selected_idx]
-        model = self.query_one(_ModelPicker).model
+        model_id = self.query_one(_ModelPicker).model_id
         self._pending_agent = agent
         self.app.push_screen(
-            WorkflowPickerModal(agent=agent, initial_model=model),
+            WorkflowPickerModal(agent=agent, initial_model=model_id),
             self._on_workflow_result,
         )
 
@@ -1702,8 +1713,8 @@ class AgentPickerScreen(Screen):
         """Handle WorkflowPickerModal dismissal. If cancelled, stay on this screen (scroll preserved)."""
         if result is None:
             return
-        wf_key, model = result
-        self.dismiss((self._pending_agent, wf_key, model))
+        wf_key, model_id = result
+        self.dismiss((self._pending_agent, wf_key, model_id))
 
     def action_close(self) -> None:
         self.dismiss(None)
@@ -2814,6 +2825,95 @@ class FilterPickerModal(ModalScreen):
             current = getattr(current, "parent", None)
 
 
+class _ModelSelectModal(ModalScreen[str | None]):
+    """Centered modal for picking a model from a harness-filtered dynamic list."""
+
+    CSS = """
+    _ModelSelectModal {
+        align: center middle;
+    }
+    #ms-outer {
+        width: 64;
+        height: auto;
+        background: #0B1220;
+        border: round #0B1220;
+        padding: 1 2;
+    }
+    #ms-header { height: 3; margin-bottom: 1; }
+    #ms-title { width: 1fr; color: #E5E7EB; text-style: bold; content-align: left middle; }
+    #ms-close { width: auto; background: #1F2937; border: round #1F2937; color: #E5E7EB; padding: 0 1; content-align: center middle; height: 3; }
+    #ms-sub { color: #94A3B8; margin-bottom: 1; }
+    .ms-option { height: 3; width: 1fr; background: #111827; border: round #111827; padding: 0 2; margin-bottom: 1; align: left middle; }
+    .ms-option.-active { background: #233047; border: round #233047; }
+    .ms-option-label { width: 1fr; content-align: left middle; color: #CBD5E1; }
+    .ms-option.-active .ms-option-label { color: #F8FAFC; text-style: bold; }
+    #ms-hint { color: #64748B; margin-top: 1; }
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "close", "Close", show=False),
+        Binding("up", "move_up", "Up", show=False),
+        Binding("down", "move_down", "Down", show=False),
+        Binding("enter", "confirm", "Confirm", show=False),
+    ]
+
+    def __init__(self, models: "list", current: "str | Model") -> None:
+        super().__init__()
+        # models may be list[ModelInfo] or list[Model] (legacy)
+        self._models = models
+        current_id = current.value if hasattr(current, "value") else str(current)
+        self._model_ids = [
+            (m.value if hasattr(m, "value") else m.id) for m in models
+        ]
+        self._selected_idx = self._model_ids.index(current_id) if current_id in self._model_ids else 0
+        self._options: list[Widget] = []
+
+    def compose(self) -> ComposeResult:
+        with Container(id="ms-outer"):
+            with Horizontal(id="ms-header"):
+                yield Static("select model", id="ms-title")
+                yield Static("esc ✕", id="ms-close")
+            yield Static("choose the model for agent sessions", id="ms-sub")
+            for i, m in enumerate(self._models):
+                model_id = m.value if hasattr(m, "value") else m.id
+                classes = "ms-option" + (" -active" if i == self._selected_idx else "")
+                with Horizontal(classes=classes):
+                    yield Static(model_id, classes="ms-option-label")
+            yield Static("↑/↓ move   enter select   esc close", id="ms-hint")
+
+    def on_mount(self) -> None:
+        self._options = list(self.query(".ms-option"))
+
+    def _set_active(self, idx: int) -> None:
+        idx = max(0, min(len(self._options) - 1, idx))
+        if idx == self._selected_idx:
+            return
+        self._options[self._selected_idx].remove_class("-active")
+        self._selected_idx = idx
+        self._options[idx].add_class("-active")
+
+    def action_move_up(self) -> None:    self._set_active(self._selected_idx - 1)
+    def action_move_down(self) -> None:  self._set_active(self._selected_idx + 1)
+    def action_confirm(self) -> None:    self.dismiss(self._model_ids[self._selected_idx])
+    def action_close(self) -> None:      self.dismiss(None)
+
+    def on_click(self, event: events.Click) -> None:
+        if event.widget is self:
+            self.dismiss(None)
+            return
+        node_id = getattr(event.widget, "id", None) or ""
+        if node_id == "ms-close":
+            self.dismiss(None)
+            return
+        current = event.widget
+        while current is not None:
+            if current in self._options:
+                self._set_active(self._options.index(current))
+                self.action_confirm()
+                return
+            current = getattr(current, "parent", None)
+
+
 class CliPickerModal(ModalScreen):
     """CLI picker modal — choose between installed CLI tools (copilot / claude)."""
 
@@ -2903,12 +3003,12 @@ class CliPickerModal(ModalScreen):
         self._options: list[Widget] = []
 
     def compose(self) -> ComposeResult:
-        _LABELS = {"copilot": "GitHub Copilot", "claude": "Claude (Anthropic)"}
+        _LABELS = {"copilot": "GitHub Copilot", "claude": "Claude (Anthropic)", "codex": "Codex (OpenAI)"}
         with Container(id="cp-outer"):
             with Horizontal(id="cp-header"):
-                yield Static("select CLI", id="cp-title")
+                yield Static("select harness", id="cp-title")
                 yield Static("esc ✕", id="cp-close")
-            yield Static("choose which CLI to use for agent sessions", id="cp-sub")
+            yield Static("choose which CLI harness to use for agent sessions", id="cp-sub")
             for i, cli in enumerate(self._installed):
                 classes = "cp-option" + (" -active" if i == self._selected_idx else "")
                 with Horizontal(classes=classes):
@@ -2955,6 +3055,433 @@ class CliPickerModal(ModalScreen):
             current = getattr(current, "parent", None)
 
 
+_CLI_DISPLAY_NAMES: dict[str, str] = {
+    "copilot": "GitHub Copilot CLI",
+    "claude": "Claude CLI",
+    "codex": "Codex CLI (OpenAI)",
+}
+
+
+class _WizardStepRow(Widget):
+    """A single step row inside WizardScreen."""
+
+    def __init__(self, index: int, step, done: bool, is_next: bool) -> None:
+        cls = "wizard-step-row"
+        if done:
+            cls += " -done"
+        elif is_next:
+            cls += " -next"
+        super().__init__(classes=cls)
+        self._index = index
+        self._step = step
+        self._done = done
+        self._is_next = is_next
+
+    def compose(self) -> ComposeResult:
+        if self._done:
+            icon = "[bold #22C55E]✓[/]"
+        elif self._is_next:
+            icon = "[bold #8BE9FD]▶[/]"
+        else:
+            icon = "[dim #4B5563]○[/]"
+        label = f"  {self._index + 1}/{len(_STEPS)}  {self._step.description}"
+        yield Static(f"{icon}  {label}", classes="wizard-step-text")
+
+
+class WizardScreen(Screen):
+    """Full-screen new project setup wizard.
+
+    Shown on first launch when sprint-status.yaml does not exist.
+    Lets the user select a CLI harness and run the four BMAD bootstrap
+    steps (PRD → Architecture → Epics & Stories → Sprint Planning).
+    """
+
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("escape", "skip", "Skip to dashboard", show=True),
+        Binding("enter", "run_next", "Run next step", show=True),
+    ]
+
+    CSS = """
+    WizardScreen {
+        background: #0C0C0C;
+        color: #E5E7EB;
+        align: center middle;
+    }
+
+    #wz-outer {
+        width: 78;
+        height: auto;
+        background: #111111;
+        border: round #1E293B;
+        padding: 2 3;
+    }
+
+    #wz-title {
+        color: #22C55E;
+        text-style: bold;
+        margin-bottom: 0;
+    }
+
+    #wz-subtitle {
+        color: #6B7280;
+        margin-bottom: 1;
+    }
+
+    #wz-desc {
+        color: #9CA3AF;
+        margin-bottom: 2;
+    }
+
+    #wz-harness-label {
+        color: #9CA3AF;
+        margin-bottom: 0;
+    }
+
+    #wz-harness-row {
+        height: 3;
+        background: #0F172A;
+        border: round #0F172A;
+        padding: 0 1;
+        margin-bottom: 2;
+        align: left middle;
+    }
+
+    #wz-harness-row:hover {
+        background: #172033;
+        border: round #172033;
+    }
+
+    #wz-harness-val {
+        color: #E5E7EB;
+        text-style: bold;
+        content-align: left middle;
+        width: 1fr;
+    }
+
+    #wz-model-label {
+        color: #9CA3AF;
+        margin-bottom: 0;
+    }
+
+    #wz-model-row {
+        height: 3;
+        background: #0F172A;
+        border: round #0F172A;
+        padding: 0 1;
+        margin-bottom: 2;
+        align: left middle;
+    }
+
+    #wz-model-row:hover {
+        background: #172033;
+        border: round #172033;
+    }
+
+    #wz-model-val {
+        color: #E5E7EB;
+        text-style: bold;
+        content-align: left middle;
+        width: 1fr;
+    }
+
+    #wz-steps-label {
+        color: #22C55E;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #wz-steps-box {
+        height: auto;
+        background: #0F172A;
+        border: round #0F172A;
+        padding: 1 1;
+        margin-bottom: 2;
+    }
+
+    .wizard-step-row {
+        height: 2;
+        width: 1fr;
+        padding: 0 1;
+    }
+
+    .wizard-step-text {
+        color: #4B5563;
+        content-align: left middle;
+        width: 1fr;
+        height: 2;
+    }
+
+    .wizard-step-row.-done .wizard-step-text {
+        color: #22C55E;
+    }
+
+    .wizard-step-row.-next .wizard-step-text {
+        color: #E5E7EB;
+        text-style: bold;
+    }
+
+    #wz-all-done {
+        color: #22C55E;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+
+    #wz-btn-row {
+        height: 3;
+        align: left middle;
+    }
+
+    #wz-btn-run {
+        width: auto;
+        background: #166534;
+        border: round #166534;
+        color: #E5E7EB;
+        text-style: bold;
+        padding: 0 3;
+        content-align: center middle;
+        margin-right: 2;
+    }
+
+    #wz-btn-run:hover {
+        background: #15803d;
+    }
+
+    #wz-btn-run.-disabled {
+        background: #374151;
+        border: round #374151;
+        color: #6B7280;
+    }
+
+    #wz-btn-skip {
+        width: auto;
+        background: #1F2937;
+        border: round #1F2937;
+        color: #9CA3AF;
+        padding: 0 2;
+        content-align: center middle;
+    }
+
+    #wz-btn-skip:hover {
+        background: #374151;
+        color: #E5E7EB;
+    }
+
+    #wz-hint {
+        color: #374151;
+        margin-top: 1;
+    }
+    """
+
+    def __init__(self, project_root: Path, tui_config: TuiConfig) -> None:
+        super().__init__()
+        self._project_root = project_root
+        self._tui_config = tui_config
+        from .models import ProjectState as _PS
+        self._wiz_state = _PS(
+            epics=[],
+            stories=[],
+            project_root=project_root,
+            sprint_status_path=project_root / "_bmad-output/implementation-artifacts/sprint-status.yaml",
+        )
+
+    def _next_step_index(self) -> int | None:
+        for i, step in enumerate(_STEPS):
+            if not _step_done(self._project_root, step):
+                return i
+        return None
+
+    def _harness_label(self) -> str:
+        raw = self._tui_config.cli_tool
+        return _CLI_DISPLAY_NAMES.get(raw, raw) if raw else "(not configured — click to select)"
+
+    def compose(self) -> ComposeResult:
+        next_idx = self._next_step_index()
+        all_done = next_idx is None
+        with Container(id="wz-outer"):
+            yield Static("> BMAD New Project Wizard", id="wz-title")
+            yield Static(f"~ {self._project_root.name}", id="wz-subtitle")
+            yield Static(
+                "No sprint-status.yaml found. Complete the setup steps to initialise your project.",
+                id="wz-desc",
+            )
+            yield Static("harness", id="wz-harness-label")
+            with Horizontal(id="wz-harness-row"):
+                yield Static(f"{self._harness_label()}   ▼", id="wz-harness-val")
+            yield Static("model", id="wz-model-label")
+            with Horizontal(id="wz-model-row"):
+                yield Static(f"{self._model_label()}   ▼", id="wz-model-val")
+            yield Static("> setup steps", id="wz-steps-label")
+            with Container(id="wz-steps-box"):
+                for i, step in enumerate(_STEPS):
+                    done = _step_done(self._project_root, step)
+                    yield _WizardStepRow(i, step, done, is_next=(i == next_idx))
+            if all_done:
+                yield Static("✓ All steps complete. Ready to launch dashboard!", id="wz-all-done")
+            else:
+                yield Static("", id="wz-all-done")
+            with Horizontal(id="wz-btn-row"):
+                yield Static(self._run_btn_label(), id="wz-btn-run")
+                yield Static("Skip (go to dashboard)", id="wz-btn-skip")
+            yield Static("enter run   esc / skip go to dashboard", id="wz-hint")
+
+    def _run_btn_label(self) -> str:
+        next_idx = self._next_step_index()
+        if next_idx is None:
+            return "Go to Dashboard"
+        key = _STEPS[next_idx].workflow_key.replace("-", " ").title()
+        return f"Run Step {next_idx + 1}: {key}"
+
+    def on_mount(self) -> None:
+        self._refresh_run_btn()
+        if not self._tui_config.cli_tool:
+            self.call_after_refresh(self._open_cli_picker)
+
+    def _open_cli_picker(self) -> None:
+        installed = available_clis()
+        if not installed:
+            self.notify(
+                "No CLI found — install copilot, claude, or codex first",
+                timeout=5.0,
+                severity="warning",
+            )
+            return
+        current = self._tui_config.cli_tool or installed[0]
+
+        def _on_cli(choice: str | None) -> None:
+            if choice is None:
+                return
+            self._tui_config.cli_tool = choice
+            self._tui_config.default_model = ""   # reset model when harness changes
+            save_config(self._project_root, self._tui_config)
+            self._refresh_harness()
+            self._refresh_model_row()
+            self._refresh_run_btn()
+            self.notify(f"Harness set to: {_CLI_DISPLAY_NAMES.get(choice, choice)}", timeout=2.0)
+            self.call_after_refresh(self._open_model_picker)
+
+        self.app.push_screen(CliPickerModal(current, installed), _on_cli)
+
+    def _model_label(self) -> str:
+        dm = self._tui_config.default_model
+        if dm:
+            return dm
+        harness = self._tui_config.cli_tool
+        if not harness:
+            return "(select harness first)"
+        from .models import DEFAULT_MODEL_BY_HARNESS
+        return DEFAULT_MODEL_BY_HARNESS.get(harness, Model.SONNET).value
+
+    def _effective_model(self) -> str:
+        from .models import DEFAULT_MODEL_BY_HARNESS
+        dm = self._tui_config.default_model
+        if dm:
+            return dm
+        return DEFAULT_MODEL_BY_HARNESS.get(self._tui_config.cli_tool, Model.SONNET).value
+
+    def _refresh_harness(self) -> None:
+        try:
+            self.query_one("#wz-harness-val", Static).update(f"{self._harness_label()}   ▼")
+        except Exception:
+            pass
+
+    def _refresh_model_row(self) -> None:
+        try:
+            self.query_one("#wz-model-val", Static).update(f"{self._model_label()}   ▼")
+        except Exception:
+            pass
+
+    def _open_model_picker(self) -> None:
+        from .model_fetcher import fetch_models
+        harness = self._tui_config.cli_tool
+        models = fetch_models(harness)
+        current = self._tui_config.default_model or (models[0].id if models else "")
+
+        def _on_model(choice: str | None) -> None:
+            if choice is None:
+                return
+            self._tui_config.default_model = choice
+            save_config(self._project_root, self._tui_config)
+            self._refresh_model_row()
+            self.notify(f"Model set to: {choice}", timeout=2.0)
+
+        self.app.push_screen(
+            _ModelSelectModal(models, current),
+            _on_model,
+        )
+
+    def _refresh_steps(self) -> None:
+        try:
+            box = self.query_one("#wz-steps-box", Container)
+            box.remove_children()
+            next_idx = self._next_step_index()
+            for i, step in enumerate(_STEPS):
+                done = _step_done(self._project_root, step)
+                box.mount(_WizardStepRow(i, step, done, is_next=(i == next_idx)))
+        except Exception:
+            pass
+
+    def _refresh_run_btn(self) -> None:
+        next_idx = self._next_step_index()
+        all_done = next_idx is None
+        try:
+            btn = self.query_one("#wz-btn-run", Static)
+            btn.update(self._run_btn_label())
+            if all_done:
+                btn.remove_class("-disabled")
+            else:
+                btn.set_class(not self._tui_config.cli_tool, "-disabled")
+        except Exception:
+            pass
+        try:
+            done_msg = self.query_one("#wz-all-done", Static)
+            done_msg.update("✓ All steps complete. Ready to launch dashboard!" if all_done else "")
+        except Exception:
+            pass
+
+    def _do_run_next(self) -> None:
+        if not self._tui_config.cli_tool:
+            self._open_cli_picker()
+            return
+        next_idx = self._next_step_index()
+        if next_idx is None:
+            self.dismiss()
+            return
+        step = _STEPS[next_idx]
+        with self.app.suspend():
+            run_workflow(
+                workflow_key=step.workflow_key,
+                state=self._wiz_state,
+                model=self._effective_model(),
+                cli_tool=self._tui_config.cli_tool,
+                effort=self._tui_config.effort,
+            )
+        self._refresh_steps()
+        self._refresh_run_btn()
+        if self._next_step_index() is None:
+            self.notify("✓ All setup steps complete!", timeout=3.0)
+
+    def action_run_next(self) -> None:
+        self._do_run_next()
+
+    def action_skip(self) -> None:
+        self.dismiss()
+
+    def on_click(self, event: events.Click) -> None:  # type: ignore[override]
+        node_id = getattr(event.widget, "id", None) or ""
+        parent_id = getattr(getattr(event.widget, "parent", None), "id", None) or ""
+        if node_id in ("wz-harness-row", "wz-harness-val") or parent_id == "wz-harness-row":
+            self._open_cli_picker()
+        elif node_id in ("wz-model-row", "wz-model-val") or parent_id == "wz-model-row":
+            if self._tui_config.cli_tool:
+                self._open_model_picker()
+            else:
+                self.notify("Select a harness first", timeout=2.0, severity="warning")
+        elif node_id == "wz-btn-run":
+            self._do_run_next()
+        elif node_id == "wz-btn-skip":
+            self.dismiss()
+
+
 class Dashboard(App):
     TITLE = "BMAD Home"
     SUB_TITLE = ""
@@ -2995,6 +3522,12 @@ class Dashboard(App):
     }
 
     #header-branch {
+        width: auto;
+        color: #6B7280;
+        content-align: left middle;
+    }
+
+    #header-model {
         width: auto;
         color: #6B7280;
         content-align: left middle;
@@ -3483,6 +4016,8 @@ class Dashboard(App):
         Binding("4", "tab_history", show=False),
         Binding("s", "sprint_plan", "Sprint Plan"),
         Binding("m", "model", "Model"),
+        Binding("comma", "effort_down", "Effort-", show=False),
+        Binding("period", "effort_up", "Effort+", show=False),
         Binding("a", "agents", "Agents"),
         Binding("h", "history", "History"),
         Binding("d", "dev_session", "Dev Session"),
@@ -3491,7 +4026,7 @@ class Dashboard(App):
         Binding("question_mark", "help", "Help", show=False),
     ]
 
-    selected_model: reactive[Model] = reactive(Model.SONNET)
+    selected_model: reactive[str] = reactive("")
     HOVER_CLEAR_DELAY_S: ClassVar[float] = 0.16
     _TAB_IDS: ClassVar[list[str]] = ["tab-sprint", "tab-agents", "tab-history"]
 
@@ -3519,6 +4054,20 @@ class Dashboard(App):
         self._history_entries: list[HistoryEntry] = []
         self._history_selected_idx: int = 0
 
+        # Restore last-used model and effort from config
+        from .models import DEFAULT_MODEL_BY_HARNESS
+        from .model_fetcher import EFFORT_LEVELS, DEFAULT_EFFORT
+        dm = self._tui_config.default_model
+        if dm:
+            self.selected_model = dm
+        else:
+            self.selected_model = DEFAULT_MODEL_BY_HARNESS.get(self._tui_config.cli_tool, Model.SONNET).value
+        # Effort — validate against harness levels
+        harness = self._tui_config.cli_tool
+        valid_efforts = EFFORT_LEVELS.get(harness, EFFORT_LEVELS[""])
+        saved_effort = self._tui_config.effort
+        self._tui_config.effort = saved_effort if saved_effort in valid_efforts else DEFAULT_EFFORT.get(harness, "medium")
+
     def compose(self) -> ComposeResult:
         branch = _current_git_branch(self._project_root)
         with Container(id="root"):
@@ -3526,6 +4075,7 @@ class Dashboard(App):
                 with Vertical(id="header-left"):
                     yield Static(f"~ {self._project_root.name} board", id="header-title")
                     yield Static(f"⎇  {branch}", id="header-branch")
+                    yield Static(self._model_effort_markup(), id="header-model")
                 with Horizontal(id="header-tabs-area"):
                     yield Static("", classes="header-fill")
                     with Horizontal(id="header-tabs"):
@@ -3573,6 +4123,7 @@ class Dashboard(App):
                     "[green]f[/] [white]filter[/]   "
                     "[green]s[/] [white]sprint plan[/]   "
                     "[green]m[/] [white]model[/]   "
+                    "[green],.  [/] [white]effort[/]   "
                     "[green]a[/] [white]agents[/]   "
                     "[green]h[/] [white]history[/]   "
                     "[green]d[/] [white]dev session[/]   "
@@ -3597,18 +4148,31 @@ class Dashboard(App):
                 if card is not None:
                     card.scroll_visible(top=False)
             self.call_after_refresh(_scroll_to_last_focused)
-        if not self._tui_config.cli_tool:
+        if not self._state.sprint_status_path.exists():
+            self.call_after_refresh(self._push_wizard_screen)
+        elif not self._tui_config.cli_tool:
             self.call_after_refresh(self._prompt_cli_first_time)
 
     def _prompt_cli_first_time(self) -> None:
         """Show CLI picker on first launch (cli_tool not yet set)."""
         installed = available_clis()
         if len(installed) == 1:
-            # Only one CLI installed — set it silently without bothering the user.
             self._tui_config.cli_tool = installed[0]
             save_config(self._project_root, self._tui_config)
             return
         self._open_cli_picker()
+
+    def _push_wizard_screen(self) -> None:
+        """Push the in-TUI setup wizard when no sprint-status.yaml exists."""
+        def _on_wizard_done(_result) -> None:
+            self._state = load_state(self._project_root)
+            self._epics = self._sorted_epics()
+            self._render_home()
+            self._update_phase_banner()
+            if not self._tui_config.cli_tool:
+                self.call_after_refresh(self._prompt_cli_first_time)
+
+        self.push_screen(WizardScreen(self._project_root, self._tui_config), _on_wizard_done)
 
     # --- Data helpers ---
 
@@ -4322,11 +4886,13 @@ class Dashboard(App):
     def _on_modal_result(self, result: tuple | None) -> None:
         if result is None:
             return
-        key, model, *rest = result
+        key, model_id, *rest = result
+        # model_id is a plain string (model ID) from the modal
+        model_id = model_id if isinstance(model_id, str) else str(model_id)
         session_id = rest[0] if rest else ""
         # auto_despawn is the 4th element (index 1 in rest), default to current config
         auto_despawn: bool = bool(rest[1]) if len(rest) > 1 else self._tui_config.auto_despawn_yolo
-        self.selected_model = model
+        self.selected_model = model_id
 
         story = next((s for s in self._state.stories if s.id == self._selected_story_id), None)
         wf = WORKFLOWS.get(key)
@@ -4339,10 +4905,12 @@ class Dashboard(App):
             self.notify(f"Missing: {', '.join(missing)} — install then retry", timeout=4.0)
             return
 
-        # Persist model choice and auto_despawn setting
-        self._tui_config.set_model_for(key, model.value)
+        # Persist model choice, default_model, and auto_despawn setting
+        self._tui_config.set_model_for(key, model_id)
+        self._tui_config.default_model = model_id
         self._tui_config.auto_despawn_yolo = auto_despawn
         save_config(self._project_root, self._tui_config)
+        self._refresh_header_model()
 
         state = self._state
 
@@ -4351,7 +4919,7 @@ class Dashboard(App):
         saved_story_id = story.id
 
         with self.app.suspend():
-            entry = run_workflow(workflow_key=key, state=state, model=model, story=story, session_id=session_id, auto_despawn=auto_despawn, cli_tool=self._tui_config.cli_tool)
+            entry = run_workflow(workflow_key=key, state=state, model=model_id, story=story, session_id=session_id, auto_despawn=auto_despawn, cli_tool=self._tui_config.cli_tool, effort=self._tui_config.effort)
 
         def _on_done() -> None:
             # Reload state after agent finishes
@@ -4534,7 +5102,7 @@ class Dashboard(App):
             self.notify(f"Missing: {', '.join(missing)} — install then retry", timeout=4.0)
             return
         with self.app.suspend():
-            entry = run_workflow(workflow_key, self._state, self.selected_model, story=None, cli_tool=self._tui_config.cli_tool)
+            entry = run_workflow(workflow_key, self._state, self.selected_model, story=None, cli_tool=self._tui_config.cli_tool, effort=self._tui_config.effort)
 
         def _on_done() -> None:
             self._state = load_state(self._project_root)
@@ -4547,11 +5115,62 @@ class Dashboard(App):
     def action_sprint_plan(self) -> None:
         self._run_sprint_workflow("sprint-planning")
 
+    def _model_effort_markup(self) -> str:
+        """Rich markup for the model+effort display in the header."""
+        from .model_fetcher import effort_rich
+        effort = self._tui_config.effort
+        model_id = self.selected_model or "—"
+        return f"◈  {model_id} · {effort_rich(effort)}"
+
+    def _refresh_header_model(self) -> None:
+        try:
+            self.query_one("#header-model", Static).update(self._model_effort_markup())
+        except Exception:
+            pass
+
     def action_model(self) -> None:
-        models = list(Model)
-        idx = models.index(self.selected_model)
-        self.selected_model = models[(idx + 1) % len(models)]
-        self.notify(f"Model: {self.selected_model.label()}", timeout=1.5)
+        """Open a model picker with harness-filtered dynamic models."""
+        from .model_fetcher import fetch_models
+        harness = self._tui_config.cli_tool
+        models = fetch_models(harness)
+        if not models:
+            self.notify("No models available for this harness", timeout=2.0)
+            return
+        current = self.selected_model
+        # _ModelSelectModal now accepts list[ModelInfo] and returns a model ID string
+        self.push_screen(_ModelSelectModal(models, current), self._on_model_selected)
+
+    def _on_model_selected(self, model_id: str | None) -> None:
+        if not model_id:
+            return
+        self.selected_model = model_id
+        self._tui_config.default_model = model_id
+        save_config(self._project_root, self._tui_config)
+        self._refresh_header_model()
+        self.notify(f"Model: {model_id}", timeout=1.5)
+
+    def action_effort_up(self) -> None:
+        from .model_fetcher import EFFORT_LEVELS
+        harness = self._tui_config.cli_tool
+        levels = EFFORT_LEVELS.get(harness, EFFORT_LEVELS[""])
+        cur = self._tui_config.effort
+        idx = levels.index(cur) if cur in levels else 0
+        self._tui_config.effort = levels[(idx + 1) % len(levels)]
+        save_config(self._project_root, self._tui_config)
+        self._refresh_header_model()
+        from .model_fetcher import effort_rich
+        self.notify(f"Effort: {self._tui_config.effort}", timeout=1.0)
+
+    def action_effort_down(self) -> None:
+        from .model_fetcher import EFFORT_LEVELS
+        harness = self._tui_config.cli_tool
+        levels = EFFORT_LEVELS.get(harness, EFFORT_LEVELS[""])
+        cur = self._tui_config.effort
+        idx = levels.index(cur) if cur in levels else 0
+        self._tui_config.effort = levels[(idx - 1) % len(levels)]
+        save_config(self._project_root, self._tui_config)
+        self._refresh_header_model()
+        self.notify(f"Effort: {self._tui_config.effort}", timeout=1.0)
 
     def action_agents(self) -> None:
         self._last_agent_idx = 0
@@ -4578,7 +5197,7 @@ class Dashboard(App):
         self._last_agent_idx = next((i for i, a in enumerate(_picker_agents) if a == agent), 0)
         self._execute_workflow(wf_key, model)
 
-    def _execute_workflow(self, wf_key: str, model: "Model") -> None:
+    def _execute_workflow(self, wf_key: str, model: "str | Model") -> None:
         """Run a workflow by key and model, then reload state."""
         wf = WORKFLOWS.get(wf_key)
         if wf is None:
@@ -4590,13 +5209,14 @@ class Dashboard(App):
             self.notify(f"Missing: {', '.join(missing)} — install then retry", timeout=4.0)
             return
 
-        self._tui_config.set_model_for(wf_key, model.value)
+        model_id = model.value if hasattr(model, "value") else str(model)
+        self._tui_config.set_model_for(wf_key, model_id)
         save_config(self._project_root, self._tui_config)
 
         state = self._state
 
         with self.app.suspend():
-            entry = run_workflow(workflow_key=wf_key, state=state, model=model, story=None, from_menu=True, cli_tool=self._tui_config.cli_tool)
+            entry = run_workflow(workflow_key=wf_key, state=state, model=model_id, story=None, from_menu=True, cli_tool=self._tui_config.cli_tool, effort=self._tui_config.effort)
 
         def _on_done() -> None:
             self._state = load_state(self._project_root)
@@ -4625,10 +5245,7 @@ class Dashboard(App):
             self.notify(f"Unknown workflow: {entry.workflow}", timeout=2.0)
             return
 
-        try:
-            model = Model(entry.model)
-        except ValueError:
-            model = self.selected_model
+        model_id = entry.model or self.selected_model
 
         story: Story | None = None
         if entry.story_id:
@@ -4642,12 +5259,13 @@ class Dashboard(App):
             new_entry = run_workflow(
                 workflow_key=entry.workflow,
                 state=state,
-                model=model,
+                model=model_id,
                 story=story,
                 epic_id=entry.epic_id or None,
                 session_id=entry.session_id,
                 task_name=entry.task_name,
                 cli_tool=self._tui_config.cli_tool,
+                effort=self._tui_config.effort,
             )
 
         def _on_done() -> None:
@@ -4905,7 +5523,7 @@ class Dashboard(App):
         state = self._state
         model = self.selected_model
         with self.app.suspend():
-            entry = run_workflow(workflow_key="dev-story", state=state, model=model, story=None, from_menu=True, cli_tool=self._tui_config.cli_tool)
+            entry = run_workflow(workflow_key="dev-story", state=state, model=model, story=None, from_menu=True, cli_tool=self._tui_config.cli_tool, effort=self._tui_config.effort)
 
         def _on_done() -> None:
             self._state = load_state(self._project_root)
@@ -4931,8 +5549,9 @@ class Dashboard(App):
             workflow_key="help",
             state=self._state,
             model=self.selected_model,
-            from_menu=True,  # Interactive mode
+            from_menu=True,
             cli_tool=self._tui_config.cli_tool,
+            effort=self._tui_config.effort,
         )
         if entry:
             append_history(self._project_root, entry)
@@ -4963,11 +5582,7 @@ class Dashboard(App):
                 self.action_agents()
             elif kind == "workflow":
                 wf = WORKFLOWS.get(key)
-                saved_model_str = self._tui_config.get_model_for(key, self.selected_model.value)
-                try:
-                    initial_model = Model(saved_model_str)
-                except ValueError:
-                    initial_model = wf.default_model if wf else self.selected_model
+                initial_model = self._tui_config.get_model_for(key, self.selected_model) or self.selected_model
                 self.push_screen(
                     WorkflowPickerModal(initial_workflow_key=key, initial_model=initial_model),
                     self._on_workflow_modal_result,
