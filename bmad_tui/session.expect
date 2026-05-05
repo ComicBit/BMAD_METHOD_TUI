@@ -63,6 +63,13 @@ if {[llength $argv] >= 10} {
   set cli_tool [lindex $argv 9]
 }
 
+# Reasoning effort level (e.g. "low", "medium", "high", "xhigh", "max").
+# Passed as --effort to copilot/claude; as -c model_reasoning_effort= to codex.
+set effort "medium"
+if {[llength $argv] >= 11} {
+  set effort [lindex $argv 10]
+}
+
 # kill_armed is set to 1 when the chime fires and we detect the agent made
 # changes (saw (+N), (-N), or (+N -N) markers in its output), which tells
 # reset_idle_timer to schedule the exit sequence.
@@ -84,10 +91,19 @@ set agent_made_changes 0
 # this flag to suppress that last spurious "Task complete" chime.
 set session_ending 0
 
-if {$cli_tool eq "claude"} {
+if {$cli_tool eq "codex"} {
+  # Codex CLI: use `exec --full-auto` for yolo; bare interactive for from_menu.
+  # Effort maps to model_reasoning_effort config override.
+  if {$prompt ne ""} {
+    spawn codex exec --full-auto --model $model -c model_reasoning_effort=$effort $prompt
+  } else {
+    spawn codex --model $model -c model_reasoning_effort=$effort
+  }
+} elseif {$cli_tool eq "claude"} {
   if {$session_id ne ""} {
     spawn claude \
       --model $model \
+      --effort $effort \
       --agent $agent \
       --add-dir $repo_root \
       --add-dir /tmp \
@@ -96,6 +112,7 @@ if {$cli_tool eq "claude"} {
   } else {
     spawn claude \
       --model $model \
+      --effort $effort \
       --agent $agent \
       --add-dir $repo_root \
       --add-dir /tmp \
@@ -105,6 +122,7 @@ if {$cli_tool eq "claude"} {
 } elseif {$session_id ne ""} {
   spawn copilot \
     --model $model \
+    --effort $effort \
     --agent $agent \
     --add-dir $repo_root \
     --add-dir /tmp \
@@ -114,6 +132,7 @@ if {$cli_tool eq "claude"} {
 } else {
   spawn copilot \
     --model $model \
+    --effort $effort \
     --agent $agent \
     --add-dir $repo_root \
     --add-dir /tmp \
@@ -153,7 +172,7 @@ proc reset_idle_timer {} {
 
 expect_background \
   -re {trust the files.*\?}             { send -- "y\r"; reset_idle_timer } \
-  -re {\(C\).*Continue|\[C\].*Continue} { send -- "c\r"; reset_idle_timer } \
+  -re {\(C\).*Continue|\[C\].*Continue} { if {$is_yolo} { send -- "c\r" }; reset_idle_timer } \
   -re {\(\+[0-9]+\)|\(-[0-9]+\)|\(\+[0-9]+ -[0-9]+\)} { set agent_made_changes 1; reset_idle_timer } \
   -re {Total session time:|Total usage est:|API time spent:} { set session_ending 1; reset_idle_timer } \
   -re "\x1b\]9;4;0"                    {
