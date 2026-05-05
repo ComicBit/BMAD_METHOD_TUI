@@ -23,6 +23,15 @@ class TuiConfig:
     # CLI tool to use for agent sessions: "copilot" | "claude" | "" (not yet chosen).
     cli_tool: str = ""
 
+    # Default model value for the current harness (e.g. "o4-mini", "claude-sonnet-4.6").
+    # Empty string → fall back to DEFAULT_MODEL_BY_HARNESS[cli_tool].
+    default_model: str = ""
+
+    # Reasoning effort for the current session (harness-specific strings).
+    # copilot/claude: "low"|"medium"|"high"|"xhigh" (claude adds "max").
+    # codex: "low"|"medium"|"high" (maps to model_reasoning_effort).
+    effort: str = "medium"
+
     def get_model_for(self, workflow_key: str, fallback: str) -> str:
         """Return the remembered model value for workflow_key, or fallback."""
         return self.workflow_models.get(workflow_key, fallback)
@@ -50,6 +59,8 @@ def load_config(project_root: Path) -> TuiConfig:
             workflow_models=data.get("workflow_models", {}),
             auto_despawn_yolo=bool(data.get("auto_despawn_yolo", True)),
             cli_tool=str(data.get("cli_tool", "")),
+            default_model=str(data.get("default_model", "")),
+            effort=str(data.get("effort", "medium")),
         )
     except (json.JSONDecodeError, TypeError, AttributeError):
         return TuiConfig()
@@ -64,6 +75,8 @@ def save_config(project_root: Path, config: TuiConfig) -> None:
                 "workflow_models": config.workflow_models,
                 "auto_despawn_yolo": config.auto_despawn_yolo,
                 "cli_tool": config.cli_tool,
+                "default_model": config.default_model,
+                "effort": config.effort,
             },
             indent=2,
         ) + "\n",
